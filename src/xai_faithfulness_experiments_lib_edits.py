@@ -120,7 +120,7 @@ def _get_masked_inputs(original_input, alternative_input, ranking_row, selection
   '''
   # Reshape selection_levels to be able to broadcast the selection levels and get
   # as many masks as selection levels are provided
-  new_shape = (selection_levels.shape[0], 1, 1, 1) # Same shape but with a trailing 1
+  new_shape = (*selection_levels.shape, 1) # Same shape but with a trailing 1
   selection_levels = torch.reshape(selection_levels, new_shape)
   # Compute all masks in batch
   masks = torch.le(ranking_row,selection_levels)
@@ -174,16 +174,29 @@ def _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_l
   return class_logit,is_hit
 
 def _attributions_to_ranking_row(attributions, reverse=False):
+    '''
+    Returns a unidimensional numpy array r. r_i indicates the order of the i-th variable of the array in the importance ranking
+    Ranking position is scaled to [0-1], so 0 is the first element in the ranking and 1 is the last one.
+
+    Arguments:
+      - attributions: Unidimensional numpy array that indicates the attribution value for each variable
+      - reverse: Indicates whether to order variables in ascending order of attribution value (default) or in descending order.
+
+    Example:
+      _attributions_to_ranking_row
+    '''
+    assert(len(attributions.shape)==1) # This function assumes that the input array is unidimensional
     ranked_attributions = copy.copy(attributions)
-    print(ranked_attributions)
-    ranked_attributions.tolist().sort(reverse=reverse)
+    #print(ranked_attributions)
+    ranked_attributions = list(enumerate(ranked_attributions))
+    ranked_attributions.sort(reverse=reverse, key=lambda x:x[1])
     ranked_attributions = np.array(ranked_attributions)
-    print(ranked_attributions.shape)
+    #print(ranked_attributions.shape)
     ranking_row = np.zeros(attributions.shape)
-    print(ranked_attributions)
+    #print(ranked_attributions)
     num_attributes = len(ranked_attributions)
     for i in range(num_attributes):
-        x = int(ranked_attributions[i])
+        x = int(ranked_attributions[i][0])
         ranking_row[x] = i/(num_attributes-1)
     return ranking_row
 
