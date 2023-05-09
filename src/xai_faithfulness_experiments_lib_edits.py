@@ -248,7 +248,6 @@ def get_measures_for_ranking(input, ranking_row, output_label, model, measures=[
             elif measure=='auc':
                 result['auc_bas'] = result['auc'] - result_random['auc']
 
-    #TODO Compute measures and return
     return result
 
 def get_measures_for_attributions(input, attributions, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False):
