@@ -3,6 +3,5 @@
 *.json
 *.png
 old/
-assets/data
 *__pycache__*
 */*.gsheet
