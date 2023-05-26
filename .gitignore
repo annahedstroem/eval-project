@@ -5,3 +5,4 @@
 old/
 *__pycache__*
 */*.gsheet
+*.ipynb_checkpoints*
