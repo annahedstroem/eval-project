@@ -40,39 +40,17 @@ class MLP(torch.nn.Module):
         self.ac2 = torch.nn.Softmax(dim=-1)
     
     def forward(self, x):
+        x = torch.flatten(x, start_dim=1)
         x = self.fc1(x)
         x = self.ac1(x)
         logits = self.fc2(x)
         x = self.ac2(logits)
-        return x
-    
-class MLPForQuantus(torch.nn.Module):
-    def __init__(self, n_neurons):
-        super(MLPForQuantus, self).__init__()
-        self.fc1 = torch.nn.Linear(x_train.shape[1], n_neurons)
-        self.ac1 = torch.nn.Sigmoid()
-        self.fc2 = torch.nn.Linear(n_neurons, MODEL_LABEL_NUM)
-        self.ac2 = torch.nn.Softmax(dim=-1)
-    
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.ac1(x)
-        logits = self.fc2(x)
-        x = self.ac2(logits)
-        #Reshapes to be able to use Quantus
-        x = torch.squeeze(x)
-        x = torch.unsqueeze(x,dim=0)
         return x
 
 network = MLP(MODEL_NEURONS)
 network.load_state_dict(torch.load(MODEL_PATH))
 network.eval()
 network.to(device)
-
-network_fq = MLPForQuantus(MODEL_NEURONS)
-network_fq.load_state_dict(torch.load(MODEL_PATH))
-network_fq.eval()
-network_fq.to(device)
 
 
 import itertools
@@ -143,7 +121,7 @@ for i in tqdm(range(num_rankings),  miniters=1000):
     #print('network(x_batch) shape:',network(torch.tensor(x_batch).to(device)).shape)
     #print(a_batch)
     all_measures['faithfulness_correlation'][i] = quantus.FaithfulnessCorrelation(
-                                                    nr_runs=100,  
+                                                    nr_runs=10,
                                                     subset_size=4,  
                                                     perturb_baseline="black",
                                                     perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
@@ -151,7 +129,7 @@ for i in tqdm(range(num_rankings),  miniters=1000):
                                                     abs=False,  
                                                     return_aggregate=False,
                                                     disable_warnings=True
-                                                )(model=network_fq, 
+                                                )(model=network, 
                                                 x_batch=x_batch, 
                                                 y_batch=y_batch,
                                                 a_batch=a_batch,
@@ -159,12 +137,12 @@ for i in tqdm(range(num_rankings),  miniters=1000):
                                                 channel_first=True)[0]
     all_measures['monotonicity_correlation'][i] = quantus.MonotonicityCorrelation(
                                                     nr_samples=10,
-                                                    features_in_step=1,
-                                                    perturb_baseline="uniform",
+                                                    features_in_step=2,
+                                                    perturb_baseline="black",
                                                     perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
                                                     similarity_func=quantus.similarity_func.correlation_spearman,
                                                     disable_warnings=True
-                                                )(model=network_fq, 
+                                                )(model=network, 
                                                    x_batch=x_batch,
                                                    y_batch=y_batch,
                                                    a_batch=a_batch,
@@ -175,7 +153,7 @@ for i in tqdm(range(num_rankings),  miniters=1000):
                                                     perturb_baseline="black",
                                                     perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
                                                     disable_warnings=True
-                                                )(model=network_fq,
+                                                )(model=network,
                                                     x_batch=x_batch,
                                                     y_batch=y_batch,
                                                     a_batch=a_batch,
@@ -206,4 +184,3 @@ np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_measures.npz
          is_hit_curves_inv=all_measures['is_hit_curve_inv'], \
          output_curves_bas=all_measures['output_curve_bas'], \
          is_hit_curves_bas=all_measures['is_hit_curve_bas'])
-
