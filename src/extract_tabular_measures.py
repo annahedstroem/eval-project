@@ -65,7 +65,7 @@ all_rankings = np.array(permutations) / (NUM_VARS - 1)
 from tqdm import tqdm
 import quantus
 
-SAMPLE_NUM = 250 # Select one of the training examples in the dataset to be explained
+SAMPLE_NUM = 70 # Select one of the training examples in the dataset to be explained
 
 num_rankings = all_rankings.shape[0]
 row = torch.tensor(np.float32(x_train[SAMPLE_NUM])).to(device)
