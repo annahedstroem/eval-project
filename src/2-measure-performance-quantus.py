@@ -169,8 +169,8 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
                 print(f'{name}_auc_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}',aucs_basX[i])))
             print(f'{name}_aucs_inv ' + ' | '.join(map(lambda x: f'{x:.4f}',aucs_inv)))
 
-        aucs_basX_by_measure[name] = aucs_basX
-        aucs_inv_by_measure[name] = aucs_inv
+            aucs_basX_by_measure[name] = aucs_basX
+            aucs_inv_by_measure[name] = aucs_inv
 
 
         # %% [markdown]
@@ -211,5 +211,4 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
                     aucs_basX=aucs_basX_by_measure[name], \
                     spearman_exceptional_inv=spearman_exceptional_inv_by_measure[name], \
                     spearman_exceptional_basX=spearman_exceptional_basX_by_measure[name])
-
 
