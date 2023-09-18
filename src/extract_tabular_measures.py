@@ -22,6 +22,8 @@ x_test = file_data['x_test']
 y_train = file_data['y_train']
 y_test = file_data['y_test']
 
+masking_values = torch.from_numpy(np.mean(x_train, axis=0))
+
 # Load model
 import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -110,7 +112,7 @@ for SAMPLE_NUM in [10, 20, 30, 40, 50]:#, 80, 90, 100, 150, 300]:
     # Compute the results for each possible ranking
     for i in tqdm(range(num_rankings), miniters=1000):
         #TODO - Add several samples for qbas instead of a single one
-        measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i]).to(device), label, network, num_samples=fl.NUM_SAMPLES, with_inverse=True, with_random=True)
+        measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i]).to(device), label, network, num_samples=fl.NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
         measures['ranking'] = all_rankings[i]
         # Save all results for this rankings to the i-th position
         for k in keys:

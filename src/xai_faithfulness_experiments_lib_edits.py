@@ -157,16 +157,17 @@ def _get_class_logits_for_masked_inputs(original_input, alternative_input, ranki
   fig.savefig(f'{filename}.png')
   plt.show()'''
 
-def _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model):
+def _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model, masking_values = None):
   assert(torch.max(ranking_row)==1.0)
   assert(torch.min(ranking_row)==0.0)
-  alternative = torch.from_numpy(np.full(input.shape,  0, dtype=np.float32)) #ZEROED-OUT
+  if masking_values is None:
+    masking_values = torch.from_numpy(np.full(input.shape,  0, dtype=np.float32)) #ZEROED-OUT
 
   # Selection levels
   selection_levels = torch.from_numpy(np.linspace(0, 1, num_samples))
 
   # Increasing order
-  class_logit,is_hit = _get_class_logits_for_masked_inputs(input, alternative, ranking_row, selection_levels, model, output_label)
+  class_logit,is_hit = _get_class_logits_for_masked_inputs(input, masking_values, ranking_row, selection_levels, model, output_label)
 
   # Compute the numerical value for the measure
   #measure = measure_curves(class_logit)
@@ -200,8 +201,8 @@ def _attributions_to_ranking_row(attributions, reverse=False):
         ranking_row[x] = i/(num_attributes-1)
     return ranking_row
 
-def get_measures_for_ranking(input, ranking_row, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False):
-    curve,is_hit = _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model)
+def get_measures_for_ranking(input, ranking_row, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False, masking_values=None):
+    curve,is_hit = _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model, masking_values=masking_values)
 
     result = {'output_curve': curve, \
               'is_hit_curve': is_hit}
@@ -216,7 +217,7 @@ def get_measures_for_ranking(input, ranking_row, output_label, model, measures=[
 
     if with_inverse:
         # Get the measures for the inverse ranking
-        result_inverse = get_measures_for_ranking(input, 1-ranking_row, output_label, model, measures, num_samples, with_inverse=False, with_random=False)
+        result_inverse = get_measures_for_ranking(input, 1-ranking_row, output_label, model, measures, num_samples, with_inverse=False, with_random=False, masking_values=masking_values)
         result['output_curve_inv'] = result_inverse['output_curve']
         result['is_hit_curve_inv'] = result_inverse['is_hit_curve']
         for measure in measures:
@@ -233,7 +234,7 @@ def get_measures_for_ranking(input, ranking_row, output_label, model, measures=[
 
     if with_random:
         # Get the measures for the inverse ranking
-        result_random = get_measures_for_ranking(input, _get_random_ranking_row(ranking_row.shape), output_label, model, measures, num_samples, with_inverse=False, with_random=False)
+        result_random = get_measures_for_ranking(input, _get_random_ranking_row(ranking_row.shape), output_label, model, measures, num_samples, with_inverse=False, with_random=False, masking_values=masking_values)
         result['output_curve_bas'] = result_random['output_curve']
         result['is_hit_curve_bas'] = result_random['is_hit_curve']
         for measure in measures:
@@ -250,6 +251,6 @@ def get_measures_for_ranking(input, ranking_row, output_label, model, measures=[
 
     return result
 
-def get_measures_for_attributions(input, attributions, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False):
+def get_measures_for_attributions(input, attributions, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False, masking_values = None):
     ranking_row = torch.from_numpy(_attributions_to_ranking_row(attributions))
-    return get_measures_for_ranking(input, ranking_row, output_label, model, measures, num_samples, with_inverse, with_random)
+    return get_measures_for_ranking(input, ranking_row, output_label, model, measures, num_samples, with_inverse, with_random, masking_values=masking_values)
