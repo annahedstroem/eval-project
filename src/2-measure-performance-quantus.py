@@ -13,7 +13,7 @@ import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
-    if FILENAME.endswith('_measures.npz'):
+    if FILENAME.endswith('ood_zeros_measures.npz'):
         print(FILENAME)
         # Load data
         data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))

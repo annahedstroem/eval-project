@@ -13,7 +13,7 @@ import numpy as np
 # Avila dataset
 DATASET = 'avila'
 DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
-MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-mlp.pth')
+MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-mlp-ood-zeros.pth')
 
 # Load dataset
 file_data = np.load(DATASET_PATH)
@@ -62,23 +62,23 @@ permutations = list(itertools.permutations(range(NUM_VARS)))
 all_rankings = np.array(permutations) / (NUM_VARS - 1)
 
 # Compute the inv_lookup
-shape = tuple([NUM_VARS for x in range(NUM_VARS)])
-lookup = -1 * np.ones(shape, dtype=int)
-inv_lookup = -1 * np.ones(len(permutations), dtype=int)
-for i,p in tqdm(enumerate(permutations)):
-    lookup[p] = i
-    rev = tuple(reversed(p))
-    if lookup[rev] > 0:
-        inv_lookup[lookup[rev]] = i
-        inv_lookup[i] = lookup[rev]
-for i in range(0,len(inv_lookup)):
-    assert(permutations[i] == tuple(reversed(permutations[inv_lookup[i]])))
+#shape = tuple([NUM_VARS for x in range(NUM_VARS)])
+#lookup = -1 * np.ones(shape, dtype=int)
+#inv_lookup = -1 * np.ones(len(permutations), dtype=int)
+#for i,p in tqdm(enumerate(permutations)):
+#    lookup[p] = i
+#    rev = tuple(reversed(p))
+#    if lookup[rev] > 0:
+#        inv_lookup[lookup[rev]] = i
+#        inv_lookup[i] = lookup[rev]
+#for i in range(0,len(inv_lookup)):
+#    assert(permutations[i] == tuple(reversed(permutations[inv_lookup[i]])))
 
 # Compute data for some samples
 from tqdm import tqdm
 import quantus
 
-for SAMPLE_NUM in [10, 20, 30, 40, 60, 80, 90, 100, 150, 300]:
+for SAMPLE_NUM in [10, 20, 30, 40, 50]:#, 80, 90, 100, 150, 300]:
     #SAMPLE_NUM = 70 # Select one of the training examples in the dataset to be explained
     print('Processing', SAMPLE_NUM)
 
@@ -175,7 +175,7 @@ for SAMPLE_NUM in [10, 20, 30, 40, 60, 80, 90, 100, 150, 300]:
                                                         device=device,
                                                     channel_first=True)[0]
 
-    np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_measures.npz'), \
+    np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_ood_zeros_measures.npz'), \
             row=row.to('cpu').numpy(), \
             label=label.to('cpu').numpy(), \
             rankings=all_measures['ranking'], \
@@ -196,6 +196,6 @@ for SAMPLE_NUM in [10, 20, 30, 40, 60, 80, 90, 100, 150, 300]:
             output_curves_inv=all_measures['output_curve_inv'], \
             is_hit_curves_inv=all_measures['is_hit_curve_inv'], \
             output_curves_bas=all_measures['output_curve_bas'], \
-            is_hit_curves_bas=all_measures['is_hit_curve_bas'], \
-            inv_lookup = inv_lookup)
+            is_hit_curves_bas=all_measures['is_hit_curve_bas'])#, \
+            #inv_lookup=inv_lookup)
 
