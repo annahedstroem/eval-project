@@ -9,13 +9,16 @@
 # Import the necessary libraries
 import sys
 import os
-PROJ_DIR = os.path.realpath(os.path.dirname(os.path.abspath('')))
+PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 
+DATASET = 'glass'
+MODEL_NAME = '0'
+
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
-    if FILENAME.endswith('ood_zeros_measures.npz'):
+    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}_measures.npz'):
         print(FILENAME)
 
         # Load data
@@ -43,7 +46,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         for i in range(2,11):
             qmeans_basX.append(compute_qbas(qmeans, i))
 
-        # Compute z-score??
+        # Compute z-score
         qmean_mean = np.mean(qmeans)
         qmean_std = np.std(qmeans)
         z_scores = ((qmeans - qmean_mean) / qmean_std).flatten()
@@ -52,7 +55,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         indices = np.arange(z_scores.shape[0])
         z_scores_numbered = np.vstack((z_scores, indices))
         level_indices = []
-        boundaries = [float('-inf'), 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]
+        boundaries = [0.5, 1, 1.5, 2, 2.5, 3, 3.5]
         for i in range(1,len(boundaries)+1):
             bottom_limit = boundaries[i-1]
             top_limit = float('inf')
@@ -125,7 +128,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         aucs_inv = []
         aucs_basX = [[] for i in qmeans_basX]
 
-        for indices, (bottom_limit, upper_limit) in level_indices[2:]:
+        for indices, (bottom_limit, upper_limit) in level_indices:
             aucs_inv.append(measure_detection(indices, qmeans_inv))
             for i in range(len(qmeans_basX)):
                 aucs_basX[i].append(measure_detection(indices, qmeans_basX[i]))
@@ -143,7 +146,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         spearman_exceptional_inv = []
         spearman_exceptional_basX = [[] for i in qmeans_basX]
 
-        for indices, (bottom_limit, upper_limit) in level_indices[2:]:
+        for indices, (bottom_limit, upper_limit) in level_indices:
             spearman_exceptional_inv.append(spearmanr(qmeans[indices], qmeans_inv[indices])[0])
             for i in range(len(qmeans_basX)):
                 spearman_exceptional_basX[i].append(spearmanr(qmeans[indices], qmeans_basX[i][indices])[0])
@@ -164,6 +167,5 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
                 aucs_inv=aucs_inv, \
                 aucs_basX=aucs_basX, \
                 spearman_exceptional_inv=spearman_exceptional_inv, \
-                spearman_exceptional_basX=spearman_exceptional_basX)
-
-
+                spearman_exceptional_basX=spearman_exceptional_basX, \
+                boundaries=boundaries)

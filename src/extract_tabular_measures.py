@@ -44,6 +44,7 @@ for DATASET in ['glass', 'avila']:
     NUM_VARS = x_train.shape[1]
     permutations = list(itertools.permutations(range(NUM_VARS)))
     all_rankings = np.array(permutations) / (NUM_VARS - 1)
+    NUM_SAMPLES = min(fl.NUM_SAMPLES, NUM_VARS)
 
     for MODEL_NAME in ['', '-ood-mean', '-ood-zeros', '-undertrained', '-untrained']:
         print(f'Loading {DATASET}{MODEL_NAME}-mlp model...')
@@ -100,13 +101,12 @@ for DATASET in ['glass', 'avila']:
 
             for k in sizeNUM_SAMPLES_prefixes:
                 for s in suffixes:
-                    all_measures[k+s] = np.zeros((num_rankings, fl.NUM_SAMPLES), dtype=np.float32 if 'is_hit' not in k else bool)
+                    all_measures[k+s] = np.zeros((num_rankings, NUM_SAMPLES), dtype=np.float32 if 'is_hit' not in k else bool)
             all_measures['ranking'] = np.zeros((num_rankings, NUM_VARS), dtype=np.float32)
 
             # Compute the results for each possible ranking
-            for i in tqdm(range(num_rankings), miniters=1000):
-                #TODO - Add several samples for qbas instead of a single one
-                measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i], dtype=torch.float32).to(device), label, network, num_samples=fl.NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
+            for i in tqdm(range(num_rankings), miniters=10000):
+                measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i], dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
                 measures['ranking'] = all_rankings[i]
                 # Save all results for this rankings to the i-th position
                 for k in keys:
@@ -123,7 +123,7 @@ for DATASET in ['glass', 'avila']:
             all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
             all_measures['pixel_flipping'] = np.zeros((num_rankings,NUM_VARS), dtype=np.float32)
 
-            for i in tqdm(range(num_rankings),  miniters=1000):
+            for i in tqdm(range(num_rankings),  miniters=10000):
                 #For each ranking, retrieve and store Quantus' faithfulness metrics
                 a_batch = np.expand_dims(np.expand_dims(np.expand_dims(all_rankings[i],0),0),0)
                 #print('x_batch shape:',x_batch.shape)
@@ -148,7 +148,7 @@ for DATASET in ['glass', 'avila']:
                                                             channel_first=True)[0]
                 all_measures['monotonicity_correlation'][i] = quantus.MonotonicityCorrelation(
                                                                 nr_samples=10,
-                                                                features_in_step=2,
+                                                                features_in_step=2 if NUM_VARS % 2 == 0 else 1,
                                                                 perturb_baseline="black",
                                                                 perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
                                                                 similarity_func=quantus.similarity_func.correlation_spearman,
