@@ -120,8 +120,8 @@ def _get_masked_inputs(original_input, alternative_input, ranking_row, selection
   '''
   # Reshape selection_levels to be able to broadcast the selection levels and get
   # as many masks as selection levels are provided
-  new_shape = (*selection_levels.shape, 1) # Same shape but with a trailing 1
-  selection_levels = torch.reshape(selection_levels, new_shape)
+  while len(selection_levels.shape) <= len(ranking_row.shape):
+    selection_levels = selection_levels.unsqueeze(dim=-1)
   # Compute all masks in batch
   masks = torch.le(ranking_row,selection_levels)
   # Compute masked inputs from masks and original and alternative inputs
@@ -157,7 +157,25 @@ def _get_class_logits_for_masked_inputs(original_input, alternative_input, ranki
   fig.savefig(f'{filename}.png')
   plt.show()'''
 
-def _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model, masking_values = None):
+def _get_explanation_exploratory_curve(input:torch.Tensor, \
+                                       ranking_row:torch.Tensor, \
+                                       num_samples:int, \
+                                       output_label:int, \
+                                       model:torch.nn.Module, \
+                                       masking_values:torch.Tensor = None) -> tuple(torch.Tensor, torch.Tensor):
+  '''
+  Given an input, a target output, a model and a ranking (ordering of the input variables, indicated with values between 0 and 1)
+  computes the activation curve (and is_hit curve) for the target output of the model at as many selection levels as indicated by num_samples
+
+  Selection levels are computed by dividing the total number of attributes in num_sample equally-sized slices in increasing order of attribution/ranking
+
+  Output at a given selection level is computed by performing inference with the model on the input with the input variables up to the selection level
+  masked with the given masking_values (should have the same shape as the input; if None is provided, masking_values will be all zeros)
+
+  Returns:
+   - Activation curve -> torch.Tensor with shape (num_samples)
+   - is_hit curve -> torch.Tensor with shape (num_samples)
+  '''
   assert(torch.max(ranking_row)==1.0)
   assert(torch.min(ranking_row)==0.0)
   if masking_values is None:
@@ -174,7 +192,8 @@ def _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_l
 
   return class_logit,is_hit
 
-def _attributions_to_ranking_row(attributions, reverse=False):
+def _attributions_to_ranking_row(attributions:np.ndarray, \
+                                 reverse:bool = False) -> np.ndarray:
     '''
     Returns a unidimensional numpy array r. r_i indicates the order of the i-th variable of the array in the importance ranking
     Ranking position is scaled to [0-1], so 0 is the first element in the ranking and 1 is the last one.
@@ -201,7 +220,24 @@ def _attributions_to_ranking_row(attributions, reverse=False):
         ranking_row[x] = i/(num_attributes-1)
     return ranking_row
 
-def get_measures_for_ranking(input, ranking_row, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False, masking_values=None):
+def get_measures_for_ranking(input:torch.Tensor, \
+                              ranking_row:torch.Tensor, \
+                              output_label:torch.Tensor, \
+                              model:torch.nn.Module, \
+                              measures:list[str] = ['mean','at_first_argmax','auc'], \
+                              num_samples:int = NUM_SAMPLES, \
+                              with_inverse:bool = False, \
+                              with_random:bool = False, \
+                              masking_values:torch.Tensor = None) -> dict:
+    '''
+    Given an input, a target output, a model and a ranking (ordering of the input variables, indicated with values between 0 and 1), computes:
+      - Output curve with as many points as indicated by num_samples
+      - is_hit_curve with as many points as indicated by num_samples. Each element is True only if the target output is the largest of all outputs
+      - The measures indicated in the measures parameter:
+        - mean - Average activation in the num_samples points
+        - auc - AUC of the activation curve in the num_samples points
+        - at_first_argmax - Activation of the target output at the first selection level in which the target is the largest output
+    '''
     curve,is_hit = _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model, masking_values=masking_values)
 
     result = {'output_curve': curve, \
@@ -251,6 +287,17 @@ def get_measures_for_ranking(input, ranking_row, output_label, model, measures=[
 
     return result
 
-def get_measures_for_attributions(input, attributions, output_label, model, measures=['mean','at_first_argmax','auc'], num_samples=NUM_SAMPLES, with_inverse=False, with_random=False, masking_values = None):
+def get_measures_for_attributions(input:torch.Tensor, \
+                                  attributions:np.ndarray, \
+                                  output_label:torch.Tensor, \
+                                  model:torch.nn.Module, \
+                                  measures:list[str] = ['mean','at_first_argmax','auc'], \
+                                  num_samples:int = NUM_SAMPLES, \
+                                  with_inverse:bool = False, \
+                                  with_random:bool = False, \
+                                  masking_values:torch.Tensor = None) -> dict:
+    ''' Same as above, but instead of a ranking, the second parameter contains an attribution value for
+    each variable.
+    '''
     ranking_row = torch.from_numpy(_attributions_to_ranking_row(attributions))
     return get_measures_for_ranking(input, ranking_row, output_label, model, measures, num_samples, with_inverse, with_random, masking_values=masking_values)
