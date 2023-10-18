@@ -162,7 +162,7 @@ def _get_explanation_exploratory_curve(input:torch.Tensor, \
                                        num_samples:int, \
                                        output_label:int, \
                                        model:torch.nn.Module, \
-                                       masking_values:torch.Tensor = None) -> tuple(torch.Tensor, torch.Tensor):
+                                       masking_values:torch.Tensor = None) -> tuple[torch.Tensor, torch.Tensor]:
   '''
   Given an input, a target output, a model and a ranking (ordering of the input variables, indicated with values between 0 and 1)
   computes the activation curve (and is_hit curve) for the target output of the model at as many selection levels as indicated by num_samples
