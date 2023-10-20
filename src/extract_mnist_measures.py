@@ -21,6 +21,7 @@ import numpy as np
 # MNIST dataset
 DATASET = 'mnist'
 MODEL_NAME = 'ood-mean'
+GENERATOR = '_genetic'
 DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
 MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-{MODEL_NAME}-mlp.pth')
 
@@ -85,11 +86,11 @@ INPUT_SHAPE = x_train.shape[1:]
 for d in x_train.shape[1:]:
     NUM_VARS *= d
 NUM_SAMPLES = min(fl.NUM_SAMPLES, NUM_VARS)
-all_rankings = np.zeros((num_rankings, *x_train.shape[1:])) # To be randomly generated on the first loop
 
 # %%
 from tqdm import tqdm
 import quantus
+import genetic_generator as gg
 
 masking_values = torch.from_numpy(np.zeros(x_train.shape[1:])).float().to(device)
 if MODEL_NAME == 'ood-mean':
@@ -99,6 +100,19 @@ for SAMPLE_NUM in [10, 20, 30, 40, 50]:
     print('Processing', SAMPLE_NUM)
     row = x_train[SAMPLE_NUM].clone().detach().to(device)
     label = y_train[SAMPLE_NUM].clone().detach().to(device)
+
+    print(f'Generating {GENERATOR} rankings...')
+    if GENERATOR == "_genetic":
+        # Genetically optimized
+        def fitness(ranking:np.ndarray) -> float:
+            measures = fl.get_measures_for_ranking(row, torch.tensor(ranking, dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
+            return measures['mean']
+        all_rankings = gg.generate_rankings(num_rankings, INPUT_SHAPE, fitness)
+    else:
+        #Random
+        all_rankings = np.zeros((num_rankings, *INPUT_SHAPE)) # To be randomly generated on the first loop
+        for i in range(num_rankings):
+            all_rankings[i] = fl._get_random_ranking_row(row.shape) # Random generation
 
     # All of these measures will be stored
     suffixes = ['', '_inv', '_bas']
@@ -123,7 +137,6 @@ for SAMPLE_NUM in [10, 20, 30, 40, 50]:
 
     # Compute the results for each possible ranking
     for i in tqdm(range(num_rankings), miniters=1000):
-        all_rankings[i] = fl._get_random_ranking_row(row.shape) # Random generation
         measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i], dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
         measures['ranking'] = all_rankings[i]
         # Save all results for this rankings to the i-th position
@@ -190,7 +203,7 @@ for SAMPLE_NUM in [10, 20, 30, 40, 50]:
                                                     channel_first=True)[0]
 
     # %%
-    np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_{MODEL_NAME}_measures.npz'), \
+    np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_{MODEL_NAME}_{GENERATOR}measures.npz'), \
             row=row.to('cpu').numpy(), \
             label=label.to('cpu').numpy(), \
             rankings=all_measures['ranking'], \

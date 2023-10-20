@@ -129,6 +129,13 @@ def _get_masked_inputs(original_input, alternative_input, ranking_row, selection
   return inputs_masked
 
 def _get_random_ranking_row(dimensions):
+  '''
+  Generates a random ranking row.
+  
+  A ranking row is like an attribution tensor (it holds a value for each input variable
+  that represents its importance) but these values are all different and between 0 and 1 (indicating the position of
+  the corresponding variable in the ranking of all variables according to their attribution)
+  '''
   num_elems = 1
   for d in dimensions:
     num_elems *= d
@@ -237,6 +244,10 @@ def get_measures_for_ranking(input:torch.Tensor, \
         - mean - Average activation in the num_samples points
         - auc - AUC of the activation curve in the num_samples points
         - at_first_argmax - Activation of the target output at the first selection level in which the target is the largest output
+
+    A ranking row is like an attribution tensor (it holds a value for each input variable
+    that represents its importance) but these values are all different and between 0 and 1 (indicating the position of
+    the corresponding variable in the ranking of all variables according to their attribution)
     '''
     curve,is_hit = _get_explanation_exploratory_curve(input, ranking_row, num_samples, output_label, model, masking_values=masking_values)
 
