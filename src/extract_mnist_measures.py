@@ -80,7 +80,7 @@ network.to(device)
 # %%
 from tqdm import tqdm
 
-num_rankings = 100000
+num_rankings = 10000
 NUM_VARS  = 1
 INPUT_SHAPE = x_train.shape[1:]
 for d in x_train.shape[1:]:
@@ -92,9 +92,8 @@ from tqdm import tqdm
 import quantus
 import genetic_generator as gg
 
+# The mean is zero because this dataset is standardized
 masking_values = torch.from_numpy(np.zeros(x_train.shape[1:])).float().to(device)
-if MODEL_NAME == 'ood-mean':
-    masking_values[:] = 0.1307
 
 for SAMPLE_NUM in [10, 20, 30, 40, 50]:
     print('Processing', SAMPLE_NUM)
