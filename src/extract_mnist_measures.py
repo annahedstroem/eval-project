@@ -106,7 +106,7 @@ for SAMPLE_NUM in [10, 20, 30, 40, 50]:
         def fitness(ranking:np.ndarray) -> float:
             measures = fl.get_measures_for_ranking(row, torch.tensor(ranking, dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
             return measures['mean']
-        all_rankings = gg.generate_rankings(num_rankings, INPUT_SHAPE, fitness)
+        all_rankings = gg.generate_rankings(num_rankings, INPUT_SHAPE, fitness, num_iterations = 50)
     else:
         #Random
         all_rankings = np.zeros((num_rankings, *INPUT_SHAPE)) # To be randomly generated on the first loop

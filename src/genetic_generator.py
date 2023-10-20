@@ -73,7 +73,7 @@ def generate_rankings(num_rankings: int,\
 
     for i in range(num_iterations):
         iteration_fitnesses = []
-        for j in range(population_size):
+        for j in tqdm(range(population_size)):
             fitness = fitness_function(population[j].reshape(element_shape) / (num_features - 1))
             iteration_fitnesses.append((fitness, j))
         iteration_fitnesses.sort(reverse=True)
@@ -84,7 +84,7 @@ def generate_rankings(num_rankings: int,\
         print(f'{i+1}/{num_iterations} - Avg. fitness {avg_fitness}')
         _repopulate(population, num_rankings)
     
-    return population[:num_rankings].reshape((num_rankings, *element_shape))
+    return population[:num_rankings].reshape((num_rankings, *element_shape)) / (num_features - 1)
 
 if __name__ == '__main__':
   #TESTS
