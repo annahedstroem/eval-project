@@ -14,11 +14,11 @@ sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 
-DATASET = 'glass'
-MODEL_NAME = '0'
+DATASET = 'mnist'
+MODEL_NAME = 'ood-mean'
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
-    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}_measures.npz'):
+    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}__geneticmeasures.npz'):
         print(FILENAME)
 
         # Load data

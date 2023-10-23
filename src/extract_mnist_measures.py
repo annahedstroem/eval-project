@@ -202,7 +202,7 @@ for SAMPLE_NUM in [10, 20, 30, 40, 50]:
                                                     channel_first=True)[0]
 
     # %%
-    np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_{MODEL_NAME}_{GENERATOR}measures.npz'), \
+    np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}_{MODEL_NAME}{GENERATOR}_measures.npz'), \
             row=row.to('cpu').numpy(), \
             label=label.to('cpu').numpy(), \
             rankings=all_measures['ranking'], \
