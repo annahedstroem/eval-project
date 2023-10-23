@@ -1,6 +1,5 @@
 .DS_Store
 *.npz
-*.json
 *.png
 old/
 *__pycache__*
