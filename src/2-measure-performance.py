@@ -14,11 +14,18 @@ sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 
-DATASET = 'mnist'
-MODEL_NAME = 'ood-mean'
+DATASET = 'avila'
+MODEL_NAME = '0'
+GENERATION = ''
+
+# Genetic datasets need the distribution parameters of the random datasets, so load all dataset counts
+import json
+DATA_PATH = os.path.join(PROJ_DIR,'assets','data')
+with open(os.path.join(DATA_PATH, 'dataset-counts.json')) as fIn:
+    datasets = json.load(fIn)
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
-    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}__geneticmeasures.npz'):
+    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_measures.npz'):
         print(FILENAME)
 
         # Load data
@@ -49,6 +56,11 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         # Compute z-score
         qmean_mean = np.mean(qmeans)
         qmean_std = np.std(qmeans)
+
+        if GENERATION == '_genetic':
+            qmean_mean = datasets[DATASET]['mean']
+            qmean_std = datasets[DATASET]['std']
+
         z_scores = ((qmeans - qmean_mean) / qmean_std).flatten()
 
         # Stratify z-index to be able to compare performance on different parts of the spectrum
