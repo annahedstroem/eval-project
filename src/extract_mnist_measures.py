@@ -51,34 +51,9 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
         # %%
         # Load model
         import torch
-        MODEL_LABEL_NUM = 10
-        import torch.nn as nn
-        import torch.nn.functional as F
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print(f'Using {device}')
-        #https://nextjournal.com/gkoehler/pytorch-mnist
-        class MNISTClassifier(nn.Module):
-            def __init__(self):
-                super(MNISTClassifier, self).__init__()
-                self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-                self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-                self.conv2_drop = nn.Dropout2d()
-                self.fc1 = nn.Linear(320, 50)
-                self.fc2 = nn.Linear(50, MODEL_LABEL_NUM)
-
-            def forward(self, x):
-                x = F.relu(F.max_pool2d(self.conv1(x), 2))
-                x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-                x = x.view(-1, 320)
-                x = F.relu(self.fc1(x))
-                x = F.dropout(x, training=self.training)
-                x = self.fc2(x)
-                return F.softmax(x, dim = -1)
-
-        network = MNISTClassifier()
-        network.load_state_dict(torch.load(MODEL_PATH))
-        network.eval()
-        network.to(device)
+        network = fl.load_pretrained_mnist_model(MODEL_PATH)
 
         # %%
         from tqdm import tqdm
@@ -114,7 +89,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                 #Random
                 all_rankings = np.zeros((num_rankings, *INPUT_SHAPE)) # To be randomly generated on the first loop
                 for i in range(num_rankings):
-                    all_rankings[i] = fl._get_random_ranking_row(row.shape) # Random generation
+                    all_rankings[i] = fl._get_random_ranking_row(row.shape).cpu().numpy() # Random generation
 
             # All of these measures will be stored
             suffixes = ['', '_inv']#, '_bas']
@@ -153,7 +128,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
             y_batch = torch.unsqueeze(label, dim=0).to('cpu').numpy()
 
             all_measures['faithfulness_correlation'] = np.zeros(num_rankings, dtype=np.float32)
-            all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
+            #all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
             all_measures['pixel_flipping'] = np.zeros((num_rankings,NUM_VARS), dtype=np.float32)
 
             for i in tqdm(range(num_rankings),  miniters=1000):
@@ -179,7 +154,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                                                             a_batch=a_batch,
                                                             device=device,
                                                             channel_first=True)[0]
-                all_measures['monotonicity_correlation'][i] = quantus.MonotonicityCorrelation(
+                '''all_measures['monotonicity_correlation'][i] = quantus.MonotonicityCorrelation(
                                                                 nr_samples=10,
                                                                 features_in_step=2 if NUM_VARS % 2 == 0 else 1,
                                                                 perturb_baseline="black",
@@ -192,6 +167,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                                                             a_batch=a_batch,
                                                             device=device,
                                                             channel_first=True)[0]
+                '''
                 all_measures['pixel_flipping'][i] = quantus.PixelFlipping(
                                                                 features_in_step=1,
                                                                 perturb_baseline="black",
@@ -210,7 +186,6 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                     label=label.to('cpu').numpy(), \
                     rankings=all_measures['ranking'], \
                     faithfulness_correlations=all_measures['faithfulness_correlation'], \
-                    monotonicity_correlations=all_measures['monotonicity_correlation'], \
                     pixel_flippings=all_measures['pixel_flipping'], \
                     qmeans=all_measures['mean'], \
                     qmean_invs=all_measures['mean_inv'], \
@@ -228,4 +203,5 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                     #qauc_bas=all_measures['auc_bas'], \
                     #output_curves_bas=all_measures['output_curve_bas'], \
                     #is_hit_curves_bas=all_measures['is_hit_curve_bas']
+                    #monotonicity_correlations=all_measures['monotonicity_correlation'], \
 

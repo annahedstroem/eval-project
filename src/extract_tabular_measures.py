@@ -54,26 +54,10 @@ for DATASET in ['glass', 'avila']:
         MODEL_LR = 1.0e-1
         MODEL_LABEL_NUM = len(np.unique(y_train))
 
-        class MLP(torch.nn.Module):
-            def __init__(self, n_neurons):
-                super(MLP, self).__init__()
-                self.fc1 = torch.nn.Linear(x_train.shape[1], n_neurons)
-                self.ac1 = torch.nn.Sigmoid()
-                self.fc2 = torch.nn.Linear(n_neurons, MODEL_LABEL_NUM)
-                self.ac2 = torch.nn.Softmax(dim=-1)
-            
-            def forward(self, x):
-                x = torch.flatten(x, start_dim=1)
-                x = self.fc1(x)
-                x = self.ac1(x)
-                logits = self.fc2(x)
-                x = self.ac2(logits)
-                return x
+        
         MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}{MODEL_NAME}-mlp.pth')
-        network = MLP(MODEL_NEURONS)
-        network.load_state_dict(torch.load(MODEL_PATH))
-        network.eval()
-        network.to(device)
+        network = fl.load_pretrained_mlp_model(MODEL_PATH, x_train.shape[1], MODEL_LABEL_NUM, MODEL_NEURONS)
+
         for SAMPLE_NUM in [10, 20, 30, 40, 50]:#, 80, 90, 100, 150, 300]:
             print('Processing', SAMPLE_NUM)
 
