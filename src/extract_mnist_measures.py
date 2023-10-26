@@ -73,7 +73,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                 x = F.relu(self.fc1(x))
                 x = F.dropout(x, training=self.training)
                 x = self.fc2(x)
-                return x#F.softmax(x)
+                return F.softmax(x, dim = -1)
 
         network = MNISTClassifier()
         network.load_state_dict(torch.load(MODEL_PATH))
@@ -117,8 +117,8 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                     all_rankings[i] = fl._get_random_ranking_row(row.shape) # Random generation
 
             # All of these measures will be stored
-            suffixes = ['', '_inv', '_bas']
-            size1_prefixes = ['mean', 'at_first_argmax', 'auc']
+            suffixes = ['', '_inv']#, '_bas']
+            size1_prefixes = ['mean', 'at_first_argmax']#, 'auc']
             sizeNUM_SAMPLES_prefixes = ['output_curve', 'is_hit_curve']
             keys = ['ranking']
             for p in size1_prefixes+sizeNUM_SAMPLES_prefixes:
@@ -139,7 +139,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
 
             # Compute the results for each possible ranking
             for i in tqdm(range(num_rankings), miniters=1000):
-                measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i], dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
+                measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i], dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=False, masking_values=masking_values)
                 measures['ranking'] = all_rankings[i]
                 # Save all results for this rankings to the i-th position
                 for k in keys:
@@ -214,17 +214,18 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                     pixel_flippings=all_measures['pixel_flipping'], \
                     qmeans=all_measures['mean'], \
                     qmean_invs=all_measures['mean_inv'], \
-                    qmean_bas=all_measures['mean_bas'], \
                     qargmaxs=all_measures['at_first_argmax'], \
                     qargmax_invs=all_measures['at_first_argmax_inv'], \
-                    qargmax_bas=all_measures['at_first_argmax_bas'], \
                     qaucs=all_measures['auc'], \
                     qauc_invs=all_measures['auc_inv'], \
-                    qauc_bas=all_measures['auc_bas'], \
                     output_curves=all_measures['output_curve'], \
                     is_hit_curves=all_measures['is_hit_curve'], \
                     output_curves_inv=all_measures['output_curve_inv'], \
-                    is_hit_curves_inv=all_measures['is_hit_curve_inv'], \
-                    output_curves_bas=all_measures['output_curve_bas'], \
-                    is_hit_curves_bas=all_measures['is_hit_curve_bas'])#, \
+                    is_hit_curves_inv=all_measures['is_hit_curve_inv'])#, \
                     #inv_lookup=inv_lookup)
+                    #qmean_bas=all_measures['mean_bas'], \
+                    #qargmax_bas=all_measures['at_first_argmax_bas'], \
+                    #qauc_bas=all_measures['auc_bas'], \
+                    #output_curves_bas=all_measures['output_curve_bas'], \
+                    #is_hit_curves_bas=all_measures['is_hit_curve_bas']
+

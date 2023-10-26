@@ -13,16 +13,11 @@ PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
+from typing import Optional
 
-DATASET = 'avila'
-MODEL_NAME = '0'
+DATASET = 'mnist'
+MODEL_NAME = '0_softmax'
 GENERATION = ''
-
-# Genetic datasets need the distribution parameters of the random datasets, so load all dataset counts
-import json
-DATA_PATH = os.path.join(PROJ_DIR,'assets','data')
-with open(os.path.join(DATA_PATH, 'dataset-counts.json')) as fIn:
-    datasets = json.load(fIn)
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
     if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_measures.npz'):
@@ -31,13 +26,14 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         # Load data
         data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))
         qmeans = data['qmeans']
-        qmeans_basX = [data['qmean_bas']]
+        #qmeans_basX = [data['qmean_bas']] # We don't look at qmean_bas, it will be recomputed later with the appropriate reference
+        qmeans_basX = []
         qmeans_inv = data['qmean_invs']
 
         # Compute qmeans_bas[2-10]
-        def compute_qbas(measure, num_samples):
-            random_indices = np.random.randint(0,  measure.shape[0], (measure.shape[0], num_samples))
-            random_qmeans = measure[random_indices]
+        def compute_qbas(measure, num_samples, reference:np.ndarray):
+            random_indices = np.random.randint(0,  reference.shape[0], (reference.shape[0], num_samples))
+            random_qmeans = reference[random_indices]
             mean = np.mean(random_qmeans, axis=1)
 
             # First way to deal with std==0; add some epsilon
@@ -50,16 +46,24 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             # Always ignore std
             std=1
             return (measure - mean) / std
-        for i in range(2,11):
-            qmeans_basX.append(compute_qbas(qmeans, i))
+        
+        if GENERATION == '_genetic':
+            # If data is genetic, we'll load the random generated equivalent to compute qbas with
+            data_reference = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME.replace('_genetic', '')))
+            qmeans_reference = data_reference['qmeans']
+
+        for i in range(1,11):
+            # If data is genetic, compute qbas with random data from other file
+            qmeans_basX.append(compute_qbas(qmeans, i, qmeans_reference if GENERATION == '_genetic' else qmeans))
 
         # Compute z-score
         qmean_mean = np.mean(qmeans)
         qmean_std = np.std(qmeans)
-
+        print(qmean_mean)
+        print(qmean_std)
         if GENERATION == '_genetic':
-            qmean_mean = datasets[DATASET]['mean']
-            qmean_std = datasets[DATASET]['std']
+            qmean_mean = np.mean(qmeans_reference)
+            qmean_std = np.std(qmeans_reference)
 
         z_scores = ((qmeans - qmean_mean) / qmean_std).flatten()
 
@@ -74,6 +78,13 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             if i < len(boundaries):
                 top_limit = boundaries[i]
             level_indices.append((z_scores_numbered[:,np.logical_and(bottom_limit<=z_scores, z_scores<top_limit)][1,:].astype(int),(bottom_limit, top_limit)))
+        print(level_indices)
+        print(qmean_mean)
+        print(qmean_std)
+        from matplotlib import pyplot as plt
+        plt.hist(z_scores)
+        plt.show()
+        exit()
 
         # %% [markdown]
         # ## 2. Measure performance
@@ -131,8 +142,8 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         from sklearn import metrics
 
         def measure_detection(target_indices, estimator):
-            if len(target_indices)==0:
-                return 1
+            if (len(target_indices)==0) or (len(target_indices) == estimator.shape[0]):
+                return float('nan')
             target = np.zeros_like(estimator, dtype=int)
             target[target_indices] = 1
             return metrics.roc_auc_score(target, estimator)
