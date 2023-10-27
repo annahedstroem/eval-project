@@ -17,7 +17,7 @@ from typing import Optional
 
 DATASET = 'mnist'
 MODEL_NAME = '0_softmax'
-GENERATION = ''
+GENERATION = '_genetic'
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
     if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_measures.npz'):

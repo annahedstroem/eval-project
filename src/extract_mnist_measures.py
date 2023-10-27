@@ -191,8 +191,6 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                     qmean_invs=all_measures['mean_inv'], \
                     qargmaxs=all_measures['at_first_argmax'], \
                     qargmax_invs=all_measures['at_first_argmax_inv'], \
-                    qaucs=all_measures['auc'], \
-                    qauc_invs=all_measures['auc_inv'], \
                     output_curves=all_measures['output_curve'], \
                     is_hit_curves=all_measures['is_hit_curve'], \
                     output_curves_inv=all_measures['output_curve_inv'], \
@@ -204,4 +202,6 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
                     #output_curves_bas=all_measures['output_curve_bas'], \
                     #is_hit_curves_bas=all_measures['is_hit_curve_bas']
                     #monotonicity_correlations=all_measures['monotonicity_correlation'], \
+                    #qaucs=all_measures['auc'], \
+                    #qauc_invs=all_measures['auc_inv'], \
 
