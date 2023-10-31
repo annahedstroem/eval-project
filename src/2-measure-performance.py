@@ -16,7 +16,7 @@ import numpy as np
 from typing import Optional
 
 DATASET = 'mnist'
-MODEL_NAME = '0_softmax'
+MODEL_NAME = 'ood-mean_softmax'
 GENERATION = '_genetic'
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
@@ -59,8 +59,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         # Compute z-score
         qmean_mean = np.mean(qmeans)
         qmean_std = np.std(qmeans)
-        print(qmean_mean)
-        print(qmean_std)
+        
         if GENERATION == '_genetic':
             qmean_mean = np.mean(qmeans_reference)
             qmean_std = np.std(qmeans_reference)
@@ -78,14 +77,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             if i < len(boundaries):
                 top_limit = boundaries[i]
             level_indices.append((z_scores_numbered[:,np.logical_and(bottom_limit<=z_scores, z_scores<top_limit)][1,:].astype(int),(bottom_limit, top_limit)))
-        print(level_indices)
-        print(qmean_mean)
-        print(qmean_std)
-        from matplotlib import pyplot as plt
-        plt.hist(z_scores)
-        plt.show()
-        exit()
-
+        
         # %% [markdown]
         # ## 2. Measure performance
         # ### 2.1 Order preservation

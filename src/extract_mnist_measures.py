@@ -20,33 +20,30 @@ import numpy as np
 # %%
 # MNIST dataset
 DATASET = 'mnist'
-#MODEL_NAME = 'ood-mean_softmax'
-for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
-    #GENERATOR = ''
-    #GENERATOR = '_genetic'
-    for GENERATOR in ['', '_genetic']:
-        DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
-        MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-{MODEL_NAME}-mlp.pth')
-
-        # Load dataset
-        import torch
-        import torchvision
-
-        batch_size = 256
-
-        MNIST_PATH = os.path.join(PROJ_DIR, 'data', 'mnist')
-
-        train_loader = torch.utils.data.DataLoader(
+# Load dataset
+import torch
+import torchvision
+batch_size = 256
+MNIST_PATH = os.path.join(PROJ_DIR, 'data', 'mnist')
+train_loader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(MNIST_PATH, train=True, download=True,
                                     transform=torchvision.transforms.Compose([
                                     torchvision.transforms.ToTensor(),
                                     torchvision.transforms.Normalize(
                                         (0.1307,), (0.3081,))
                                     ])),
-        batch_size=batch_size, shuffle=True)
+        batch_size=batch_size, shuffle=False)
 
-        examples = enumerate(train_loader)
-        batch_idx, (x_train, y_train) = next(examples)
+examples = enumerate(train_loader)
+batch_idx, (x_train, y_train) = next(examples)
+
+#MODEL_NAME = 'ood-mean_softmax'
+for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
+    #GENERATOR = ''
+    #GENERATOR = '_genetic'
+    for GENERATOR in ['',  '_genetic']:
+        DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
+        MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-{MODEL_NAME}-mlp.pth')
 
         # %%
         # Load model
@@ -82,7 +79,7 @@ for MODEL_NAME in ['softmax', 'ood-mean_softmax']:
             if GENERATOR == "_genetic":
                 # Genetically optimized
                 def fitness(ranking:np.ndarray) -> float:
-                    measures = fl.get_measures_for_ranking(row, torch.tensor(ranking, dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=True, masking_values=masking_values)
+                    measures = fl.get_measures_for_ranking(row, torch.tensor(ranking, dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=False, with_random=False, masking_values=masking_values)
                     return measures['mean']
                 all_rankings = gg.generate_rankings(num_rankings, INPUT_SHAPE, fitness, num_iterations = 50)
             else:
