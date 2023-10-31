@@ -27,35 +27,64 @@ print(f'Using {device}')
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.datasets import ImageFolder
+import PIL
 batch_size = 256
-IMAGENET_PATH = os.path.join(PROJ_DIR, 'data', 'imagenette')
-# Define appropriate transformations
-# The values for normalization (mean and std) are standard for ImageNet
-transform = transforms.Compose([
-    transforms.Resize(256), 
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+IMAGENETTE_PATH = os.path.join(PROJ_DIR, 'data', 'imagenette')
+IMAGENETTE_CLASS_DICT = {'n01440764':0, 'n02102040':217, 'n02979186':481, 'n03000684':491, 'n03028079':497, 'n03394916':566, 'n03417042':569, 'n03425413':571, 'n03445777':574, 'n03888257':701}
+IMAGENETTE_CLASS_DIRS = sorted(list(IMAGENETTE_CLASS_DICT.keys()))
 
-# Create the DataLoader for the ImageNet dataset
-# Assuming IMAGENET_PATH/train is the path to training images
-train_dataset = ImageFolder(root=os.path.join(IMAGENET_PATH, 'train'), transform=transform)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+def get_imagenette_dataset(is_test=False, project_path:str='../'):
+    ''' Loads the imagenette dataset. By default it loads the train partition, unless otherwise indicated'''
+    def transform_labels(l):
+        new_l = IMAGENETTE_CLASS_DICT[IMAGENETTE_CLASS_DIRS[l]]
+        return new_l
+
+    def load_sample(path: str) -> dict:
+        """Read data as image and path. """
+        return PIL.Image.open(path).convert("RGB")
+
+
+    #DATA_TRAIN_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'train')
+    #DATA_TEST_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'val')
+    # DEBUG!!!!
+    DATA_TRAIN_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'train_oneclass')
+    DATA_TEST_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'val_oneclass')
+
+    transform = transforms.Compose([
+                    transforms.Resize(256), 
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ])
+    # Load test data and make loaders.
+    dataset = torchvision.datasets.DatasetFolder(DATA_TEST_PATH if is_test else DATA_TRAIN_PATH, 
+                                                loader=load_sample, 
+                                                is_valid_file=lambda path: path[-5:]==".JPEG",
+                                                transform=transform, # Should we do this here or work with the full images for the RL process??
+                                                target_transform=transform_labels)
+    return dataset
+
+def get_imagenette_train_loader(batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+    dataset = get_imagenette_dataset(project_path=project_path)
+    train_loader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=batch_size)
+    return train_loader
+
+def get_imagenette_test_loader(batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+    dataset = get_imagenette_dataset(True, project_path=project_path)
+    test_loader = torch.utils.data.DataLoader(dataset, shuffle=False, batch_size=batch_size)
+    return test_loader
+
+train_loader = get_imagenette_train_loader(52, PROJ_DIR)
 
 examples = enumerate(train_loader)
 batch_idx, (x_train, y_train) = next(examples)
 
 MODEL_NAME = 'resnet50'
+# Load model
+network = torchvision.models.resnet50(weights="DEFAULT").to(device).eval()
 
+from tqdm import tqdm
 for GENERATOR in ['',  '_genetic']:
-    # %%
-    # Load model
-    network = torchvision.models.resnet50(weights="DEFAULT").to(device)
-
-    # %%
-    from tqdm import tqdm
-
     num_rankings = 10000
     NUM_VARS  = 1
     INPUT_SHAPE = x_train.shape[1:]
