@@ -6,4 +6,5 @@ old/
 */*.gsheet
 *.ipynb_checkpoints*
 results/
-data/mnist/
+data/
+data/
