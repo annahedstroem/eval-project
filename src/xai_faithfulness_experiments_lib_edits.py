@@ -5,6 +5,12 @@ import torch.optim as optim
 import os.path
 import numpy as np
 import copy
+import torchvision
+import torchvision.transforms as transforms
+from torchvision.datasets import ImageFolder
+import torch.nn.functional as F
+import PIL
+PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PATH_DIR = './'
 NUM_SAMPLES = 20
@@ -45,6 +51,24 @@ class MLP(torch.nn.Module):
         logits = self.fc2(x)
         x = self.ac2(logits)
         return x
+    
+class ResNet50Wrapper(torch.nn.Module):
+    def __init__(self, weights='DEFAULT', device='cpu'):
+        super(ResNet50Wrapper, self).__init__()
+        # Load the pre-trained ResNet50 model
+        self.resnet50 = torchvision.models.resnet50(weights=weights).to(device)
+        # Set the model to evaluation mode
+        self.resnet50.eval()
+
+    def forward(self, x):
+        # Forward pass through the pre-trained ResNet50
+        logits = self.resnet50(x)
+        # Apply softmax to convert logits to probabilities
+        probabilities = F.softmax(logits, dim=1)
+        return probabilities
+
+def load_pretrained_imagenet_model():
+    return ResNet50Wrapper(weights="DEFAULT", device=device).eval()
 
 def load_pretrained_mnist_model(path):
     network = MNISTClassifier()
@@ -67,6 +91,43 @@ def load_pretrained_mlp_model(path, num_features, num_labels, num_neurons):
     else:
         raise Exception('ERROR: Could not find model at ',path)
     return network
+
+IMAGENETTE_PATH = os.path.join(PROJ_DIR, 'data', 'imagenette')
+IMAGENETTE_CLASS_DICT = {'n01440764':0, 'n02102040':217, 'n02979186':481, 'n03000684':491, 'n03028079':497, 'n03394916':566, 'n03417042':569, 'n03425413':571, 'n03445777':574, 'n03888257':701}
+IMAGENETTE_CLASS_DIRS = sorted(list(IMAGENETTE_CLASS_DICT.keys()))
+
+def get_imagenette_dataset(is_test=False, project_path:str='../'):
+    ''' Loads the imagenette dataset. By default it loads the train partition, unless otherwise indicated'''
+    def transform_labels(l):
+        new_l = IMAGENETTE_CLASS_DICT[IMAGENETTE_CLASS_DIRS[l]]
+        return new_l
+
+    def load_sample(path: str) -> dict:
+        """Read data as image and path. """
+        return PIL.Image.open(path).convert("RGB")
+
+
+    DATA_TRAIN_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'train')
+    DATA_TEST_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'val')
+
+    transform = transforms.Compose([
+                    transforms.Resize(256), 
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ])
+    # Load test data and make loaders.
+    dataset = torchvision.datasets.DatasetFolder(DATA_TEST_PATH if is_test else DATA_TRAIN_PATH, 
+                                                loader=load_sample, 
+                                                is_valid_file=lambda path: path[-5:]==".JPEG",
+                                                transform=transform, # Should we do this here or work with the full images for the RL process??
+                                                target_transform=transform_labels)
+    return dataset
+
+def get_imagenette_train_loader(batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+    dataset = get_imagenette_dataset(project_path=project_path)
+    train_loader = torch.utils.data.DataLoader(dataset, shuffle=False, batch_size=batch_size)
+    return train_loader
 
 '''
     Loads a file that contains a set of feature rankings for a given input

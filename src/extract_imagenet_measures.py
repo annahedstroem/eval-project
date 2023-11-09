@@ -24,67 +24,21 @@ DATASET = 'imagenet'
 import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'Using {device}')
-import torchvision
-import torchvision.transforms as transforms
-from torchvision.datasets import ImageFolder
-import PIL
 batch_size = 256
-IMAGENETTE_PATH = os.path.join(PROJ_DIR, 'data', 'imagenette')
-IMAGENETTE_CLASS_DICT = {'n01440764':0, 'n02102040':217, 'n02979186':481, 'n03000684':491, 'n03028079':497, 'n03394916':566, 'n03417042':569, 'n03425413':571, 'n03445777':574, 'n03888257':701}
-IMAGENETTE_CLASS_DIRS = sorted(list(IMAGENETTE_CLASS_DICT.keys()))
-
-def get_imagenette_dataset(is_test=False, project_path:str='../'):
-    ''' Loads the imagenette dataset. By default it loads the train partition, unless otherwise indicated'''
-    def transform_labels(l):
-        new_l = IMAGENETTE_CLASS_DICT[IMAGENETTE_CLASS_DIRS[l]]
-        return new_l
-
-    def load_sample(path: str) -> dict:
-        """Read data as image and path. """
-        return PIL.Image.open(path).convert("RGB")
 
 
-    #DATA_TRAIN_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'train')
-    #DATA_TEST_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'val')
-    # DEBUG!!!!
-    DATA_TRAIN_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'train_oneclass')
-    DATA_TEST_PATH = os.path.join(project_path, IMAGENETTE_PATH, 'val_oneclass')
-
-    transform = transforms.Compose([
-                    transforms.Resize(256), 
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                ])
-    # Load test data and make loaders.
-    dataset = torchvision.datasets.DatasetFolder(DATA_TEST_PATH if is_test else DATA_TRAIN_PATH, 
-                                                loader=load_sample, 
-                                                is_valid_file=lambda path: path[-5:]==".JPEG",
-                                                transform=transform, # Should we do this here or work with the full images for the RL process??
-                                                target_transform=transform_labels)
-    return dataset
-
-def get_imagenette_train_loader(batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
-    dataset = get_imagenette_dataset(project_path=project_path)
-    train_loader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=batch_size)
-    return train_loader
-
-def get_imagenette_test_loader(batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
-    dataset = get_imagenette_dataset(True, project_path=project_path)
-    test_loader = torch.utils.data.DataLoader(dataset, shuffle=False, batch_size=batch_size)
-    return test_loader
-
-train_loader = get_imagenette_train_loader(52, PROJ_DIR)
+train_loader = fl.get_imagenette_train_loader(52, PROJ_DIR)
 
 examples = enumerate(train_loader)
 batch_idx, (x_train, y_train) = next(examples)
 
-MODEL_NAME = 'resnet50'
+MODEL_NAME = 'resnet50w'
 # Load model
-network = torchvision.models.resnet50(weights="DEFAULT").to(device).eval()
+network = fl.load_pretrained_imagenet_model()
+
 
 from tqdm import tqdm
-for GENERATOR in ['',  '_genetic']:
+for GENERATOR in ['_captum']:#['',  '_genetic']:
     num_rankings = 10000
     NUM_VARS  = 1
     INPUT_SHAPE = x_train.shape[1:]
@@ -96,6 +50,7 @@ for GENERATOR in ['',  '_genetic']:
     from tqdm import tqdm
     import quantus
     import genetic_generator as gg
+    import captum_generator as cg
 
     # The mean is zero because this dataset is standardized
     masking_values = torch.from_numpy(np.zeros(x_train.shape[1:])).float().to(device)
@@ -111,11 +66,14 @@ for GENERATOR in ['',  '_genetic']:
             def fitness(ranking:np.ndarray) -> float:
                 measures = fl.get_measures_for_ranking(row, torch.tensor(ranking, dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=False, with_random=False, masking_values=masking_values)
                 return measures['mean']
-            all_rankings = gg.generate_rankings(num_rankings, INPUT_SHAPE, fitness, num_iterations = 50)
+            all_rankings = gg.generate_rankings(num_rankings, INPUT_SHAPE, fitness, num_iterations = 10)#50)
+        elif GENERATOR == "_captum":
+            all_rankings = cg.generate_rankings(row, label, network)
+            num_rankings = all_rankings.shape[0]
         else:
             #Random
             all_rankings = np.zeros((num_rankings, *INPUT_SHAPE)) # To be randomly generated on the first loop
-            for i in range(num_rankings):
+            for i in tqdm(range(num_rankings)):
                 all_rankings[i] = fl._get_random_ranking_row(row.shape).cpu().numpy() # Random generation
 
         # All of these measures will be stored
@@ -127,18 +85,20 @@ for GENERATOR in ['',  '_genetic']:
             for s in suffixes:
                 keys.append(p+s)
 
+        print(f'Preparing dict...')
         # Dict to store all results
         all_measures = {}
         # Initialize all np arrays to speed up the process
-        for k in size1_prefixes:
+        for k in tqdm(size1_prefixes):
             for s in suffixes:
                 all_measures[k+s] = np.zeros((num_rankings, 1), dtype=np.float32)
 
-        for k in sizeNUM_SAMPLES_prefixes:
+        for k in tqdm(sizeNUM_SAMPLES_prefixes):
             for s in suffixes:
                 all_measures[k+s] = np.zeros((num_rankings, NUM_SAMPLES), dtype=np.float32 if 'is_hit' not in k else bool)
         all_measures['ranking'] = np.zeros((num_rankings, *INPUT_SHAPE), dtype=np.float32)
 
+        print(f'Computing measures...')
         # Compute the results for each possible ranking
         for i in tqdm(range(num_rankings), miniters=1000):
             measures = fl.get_measures_for_ranking(row, torch.tensor(all_rankings[i], dtype=torch.float32).to(device), label, network, num_samples=NUM_SAMPLES, with_inverse=True, with_random=False, masking_values=masking_values)
@@ -150,15 +110,15 @@ for GENERATOR in ['',  '_genetic']:
         # %%
         #Retrieve and store Quantus' faithfulness metrics
         # To be used by Quantus
-        x_batch_pt = torch.unsqueeze(row, dim=0)
-        x_batch = x_batch_pt.to('cpu').numpy()
-        y_batch = torch.unsqueeze(label, dim=0).to('cpu').numpy()
+        #x_batch_pt = torch.unsqueeze(row, dim=0)
+        #x_batch = x_batch_pt.to('cpu').numpy()
+        #y_batch = torch.unsqueeze(label, dim=0).to('cpu').numpy()
 
-        all_measures['faithfulness_correlation'] = np.zeros(num_rankings, dtype=np.float32)
+        #all_measures['faithfulness_correlation'] = np.zeros(num_rankings, dtype=np.float32)
         #all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
-        all_measures['pixel_flipping'] = np.zeros((num_rankings,NUM_VARS), dtype=np.float32)
+        #all_measures['pixel_flipping'] = np.zeros((num_rankings,NUM_VARS), dtype=np.float32)
 
-        for i in tqdm(range(num_rankings),  miniters=1000):
+        for i in []:# tqdm(range(num_rankings),  miniters=1000):
             #For each ranking, retrieve and store Quantus' faithfulness metrics
             a_batch = np.expand_dims(all_rankings[i], 0)
             #print('x_batch shape:',x_batch.shape)
@@ -212,8 +172,6 @@ for GENERATOR in ['',  '_genetic']:
                 row=row.to('cpu').numpy(), \
                 label=label.to('cpu').numpy(), \
                 rankings=all_measures['ranking'], \
-                faithfulness_correlations=all_measures['faithfulness_correlation'], \
-                pixel_flippings=all_measures['pixel_flipping'], \
                 qmeans=all_measures['mean'], \
                 qmean_invs=all_measures['mean_inv'], \
                 qargmaxs=all_measures['at_first_argmax'], \
@@ -231,4 +189,6 @@ for GENERATOR in ['',  '_genetic']:
                 #monotonicity_correlations=all_measures['monotonicity_correlation'], \
                 #qaucs=all_measures['auc'], \
                 #qauc_invs=all_measures['auc_inv'], \
+                #faithfulness_correlations=all_measures['faithfulness_correlation'], \
+                #pixel_flippings=all_measures['pixel_flipping'], \
 

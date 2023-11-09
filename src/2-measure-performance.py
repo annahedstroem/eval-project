@@ -14,10 +14,11 @@ sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 from typing import Optional
+from matplotlib import pyplot as plt
 
-DATASET = 'mnist'
-MODEL_NAME = 'ood-mean_softmax'
-GENERATION = '_genetic'
+DATASET = 'imagenet'
+MODEL_NAME = 'resnet50w'
+GENERATION = '_captum'
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
     if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_measures.npz'):
@@ -25,6 +26,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
 
         # Load data
         data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))
+        
         qmeans = data['qmeans']
         #qmeans_basX = [data['qmean_bas']] # We don't look at qmean_bas, it will be recomputed later with the appropriate reference
         qmeans_basX = []
@@ -32,7 +34,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
 
         # Compute qmeans_bas[2-10]
         def compute_qbas(measure, num_samples, reference:np.ndarray):
-            random_indices = np.random.randint(0,  reference.shape[0], (reference.shape[0], num_samples))
+            random_indices = np.random.randint(0, measure.shape[0], (measure.shape[0], num_samples))
             random_qmeans = reference[random_indices]
             mean = np.mean(random_qmeans, axis=1)
 
@@ -47,24 +49,33 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             std=1
             return (measure - mean) / std
         
-        if GENERATION == '_genetic':
+        if GENERATION in ['_genetic', '_captum']:
             # If data is genetic, we'll load the random generated equivalent to compute qbas with
-            data_reference = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME.replace('_genetic', '')))
+            data_reference = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME.replace(GENERATION, '')))
             qmeans_reference = data_reference['qmeans']
 
         for i in range(1,11):
             # If data is genetic, compute qbas with random data from other file
-            qmeans_basX.append(compute_qbas(qmeans, i, qmeans_reference if GENERATION == '_genetic' else qmeans))
+            qmeans_basX.append(compute_qbas(qmeans, i, qmeans_reference if GENERATION in ['_genetic', '_captum'] else qmeans))
 
         # Compute z-score
         qmean_mean = np.mean(qmeans)
         qmean_std = np.std(qmeans)
         
-        if GENERATION == '_genetic':
+        if GENERATION in ['_genetic', '_captum']:
             qmean_mean = np.mean(qmeans_reference)
             qmean_std = np.std(qmeans_reference)
 
         z_scores = ((qmeans - qmean_mean) / qmean_std).flatten()
+        #DEBUG
+        #print(z_scores)
+        METHOD_NUM = 1
+        RANDOM_SAMPLE = 200
+        plt.plot(data['output_curves'][METHOD_NUM], color='green')
+        plt.plot(data_reference['output_curves'][RANDOM_SAMPLE], color='gray')
+        plt.plot(data['output_curves_inv'][METHOD_NUM], color='red')
+        plt.title(f'z-score={z_scores[METHOD_NUM]}')
+        plt.show()
 
         # Stratify z-index to be able to compare performance on different parts of the spectrum
         indices = np.arange(z_scores.shape[0])
@@ -106,25 +117,29 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             hits = truthX_lt_Y==estimatorX_lt_Y
             return hits.sum()/truths.size
 
+        print('\tCorrect orderings:')
         correct_pairings_basX = []
         for i in range(len(qmeans_basX)):
             correct_pairings_basX.append(measure_correct_orderings(qmeans, qmeans_basX[i]))
-            print(f'qmeans_bas{i+1}: {correct_pairings_basX[i]:.4f}')
+            print(f'\t\tqmeans_bas{i+1}: {correct_pairings_basX[i]:.4f}')
         correct_pairings_inv = measure_correct_orderings(qmeans, qmeans_inv)
-        print(f'qmeans_inv: {correct_pairings_inv:.4f}')
+        print('\t\t'+'-'*20)
+        print(f'\t\tqmeans_inv: {correct_pairings_inv:.4f}')
 
         # %% [markdown]
         # ### 2.2. Spearman correlation
         # Same thing, is the order of qmeans preserved in qbasX/qinv?
 
         # %%
+        print('\tSpearman correlation:')
         from scipy.stats import spearmanr
         spearman_basX = []
         for i in range(len(qmeans_basX)):
             spearman_basX.append(spearmanr(qmeans, qmeans_basX[i])[0])
-            print(f'qmeans_bas{i+1}: {spearman_basX[i]:.4f}')
+            print(f'\t\tqmeans_bas{i+1}: {spearman_basX[i]:.4f}')
         spearman_inv = spearmanr(qmeans, qmeans_inv)[0]
-        print(f'qmeans_inv: {spearman_inv:.4f}')
+        print('\t\t'+'-'*20)
+        print(f'\t\tqmeans_inv: {spearman_inv:.4f}')
 
         # %% [markdown]
         # ### 2.3. Ability to detect exceptionally good rankings
@@ -148,9 +163,11 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             for i in range(len(qmeans_basX)):
                 aucs_basX[i].append(measure_detection(indices, qmeans_basX[i]))
 
+        print('\tExceptional detection:')
         for i in range(len(qmeans_basX)):
-            print(f'aucs_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}',aucs_basX[i])))
-        print('aucs_inv ' + ' | '.join(map(lambda x: f'{x:.4f}',aucs_inv)))
+            print(f'\t\taucs_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}',aucs_basX[i])))
+        print('\t\t'+'-'*20)
+        print('\t\taucs_inv ' + ' | '.join(map(lambda x: f'{x:.4f}',aucs_inv)))
 
 
         # %% [markdown]
@@ -166,9 +183,11 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             for i in range(len(qmeans_basX)):
                 spearman_exceptional_basX[i].append(spearmanr(qmeans[indices], qmeans_basX[i][indices])[0])
 
+        print('\tSpearman correlation for exceptional rankings:')
         for i in range(len(qmeans_basX)):
-            print(f'spearman_exceptional_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}', spearman_exceptional_basX[i])))
-        print('spearman_exceptional_inv ' + ' | '.join(map(lambda x: f'{x:.4f}', spearman_exceptional_inv)))
+            print(f'\t\tspearman_exceptional_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}', spearman_exceptional_basX[i])))
+        print('\t\t'+'-'*20)
+        print('\t\tspearman_exceptional_inv ' + ' | '.join(map(lambda x: f'{x:.4f}', spearman_exceptional_inv)))
 
         # %% [markdown]
         # ### 3. Save

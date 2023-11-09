@@ -74,11 +74,13 @@ def generate_rankings(num_rankings: int,\
     for i in range(population_size + new_random_elements_per_iteration):
         population[i] = rng.permutation(num_features)
 
+    print(f'Starting genetic algorithm...')
     for i in range(num_iterations):
         iteration_fitnesses = []
         for j in tqdm(range(population_size + new_random_elements_per_iteration)):
             fitness = fitness_function(population[j].reshape(element_shape) / (num_features - 1))
             iteration_fitnesses.append((fitness, j))
+        print(f'Sorting {len(iteration_fitnesses)} elements...')
         iteration_fitnesses.sort(reverse=True)
         # Sort population by fitness
         sorted_indices = list(map(lambda x:x[1], iteration_fitnesses))
