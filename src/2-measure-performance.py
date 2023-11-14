@@ -17,8 +17,8 @@ from typing import Optional
 from matplotlib import pyplot as plt
 
 DATASET = 'imagenet'
-MODEL_NAME = 'resnet50w'
-GENERATION = '_captum'
+MODEL_NAME = 'vgg16'
+GENERATION = ''
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
     if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_measures.npz'):
@@ -67,15 +67,6 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
             qmean_std = np.std(qmeans_reference)
 
         z_scores = ((qmeans - qmean_mean) / qmean_std).flatten()
-        #DEBUG
-        #print(z_scores)
-        METHOD_NUM = 1
-        RANDOM_SAMPLE = 200
-        plt.plot(data['output_curves'][METHOD_NUM], color='green')
-        plt.plot(data_reference['output_curves'][RANDOM_SAMPLE], color='gray')
-        plt.plot(data['output_curves_inv'][METHOD_NUM], color='red')
-        plt.title(f'z-score={z_scores[METHOD_NUM]}')
-        plt.show()
 
         # Stratify z-index to be able to compare performance on different parts of the spectrum
         indices = np.arange(z_scores.shape[0])

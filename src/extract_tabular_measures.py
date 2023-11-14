@@ -29,6 +29,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Compute data for some samples
 from tqdm import tqdm
 import quantus
+import captum_generator as cg
+
+GENERATOR_MODE = '_captum'
 
 for DATASET in ['glass', 'avila']:
     print(f'Loading {DATASET} dataset...')
@@ -67,6 +70,10 @@ for DATASET in ['glass', 'avila']:
             row = torch.tensor(np.float32(x_train[SAMPLE_NUM])).to(device)
             label = torch.tensor(y_train[SAMPLE_NUM]).to(device)
 
+            if GENERATOR_MODE == "_captum":
+                all_rankings = cg.generate_rankings(row, label, network)
+                num_rankings = all_rankings.shape[0]
+
             # All of these measures will be stored
             suffixes = ['', '_inv', '_bas']
             size1_prefixes = ['mean', 'at_first_argmax', 'auc']
@@ -103,11 +110,12 @@ for DATASET in ['glass', 'avila']:
             x_batch = x_batch_pt.to('cpu').numpy()
             y_batch = torch.unsqueeze(label, dim=0).to('cpu').numpy()
 
-            all_measures['faithfulness_correlation'] = np.zeros(num_rankings, dtype=np.float32)
-            all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
-            all_measures['pixel_flipping'] = np.zeros((num_rankings,NUM_VARS), dtype=np.float32)
+            #all_measures['faithfulness_correlation'] = np.zeros(num_rankings, dtype=np.float32)
+            #all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
+            #all_measures['pixel_flipping'] = np.zeros((num_rankings,NUM_VARS), dtype=np.float32)
 
             for i in tqdm(range(num_rankings),  miniters=10000):
+                break # SKIP QUANTUS COMPUTATIONS - DEBUG
                 #For each ranking, retrieve and store Quantus' faithfulness metrics
                 a_batch = np.expand_dims(np.expand_dims(np.expand_dims(all_rankings[i],0),0),0)
                 #print('x_batch shape:',x_batch.shape)
@@ -155,13 +163,10 @@ for DATASET in ['glass', 'avila']:
                                                                 device=device,
                                                             channel_first=True)[0]
 
-            np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}{MODEL_NAME}_measures.npz'), \
+            np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{SAMPLE_NUM}{MODEL_NAME}{GENERATOR_MODE}_measures.npz'), \
                     row=row.to('cpu').numpy(), \
                     label=label.to('cpu').numpy(), \
                     rankings=all_measures['ranking'], \
-                    faithfulness_correlations=all_measures['faithfulness_correlation'], \
-                    monotonicity_correlations=all_measures['monotonicity_correlation'], \
-                    pixel_flippings=all_measures['pixel_flipping'], \
                     qmeans=all_measures['mean'], \
                     qmean_invs=all_measures['mean_inv'], \
                     qmean_bas=all_measures['mean_bas'], \
@@ -178,3 +183,6 @@ for DATASET in ['glass', 'avila']:
                     output_curves_bas=all_measures['output_curve_bas'], \
                     is_hit_curves_bas=all_measures['is_hit_curve_bas'])#, \
                     #inv_lookup=inv_lookup)
+                    #faithfulness_correlations=all_measures['faithfulness_correlation'], \
+                    #monotonicity_correlations=all_measures['monotonicity_correlation'], \
+                    #pixel_flippings=all_measures['pixel_flipping'], \

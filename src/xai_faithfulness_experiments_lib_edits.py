@@ -52,26 +52,62 @@ class MLP(torch.nn.Module):
         x = self.ac2(logits)
         return x
     
-class ResNet50Wrapper(torch.nn.Module):
-    def __init__(self, weights='DEFAULT', device='cpu'):
-        super(ResNet50Wrapper, self).__init__()
+class LogitToOHEWrapper(torch.nn.Module):
+    def __init__(self, network, weights='DEFAULT', device='cpu'):
+        super(LogitToOHEWrapper, self).__init__()
         # Load the pre-trained ResNet50 model
-        self.resnet50 = torchvision.models.resnet50(weights=weights).to(device)
-        # Set the model to evaluation mode
-        self.resnet50.eval()
+        self.network = network
 
     def forward(self, x):
         # Forward pass through the pre-trained ResNet50
-        logits = self.resnet50(x)
+        logits = self.network(x)
         # Apply softmax to convert logits to probabilities
         probabilities = F.softmax(logits, dim=1)
         return probabilities
+    
+class CIFARResnet50Wrapper(torch.nn.Module):
+    def __init__(self, output_logits = False, device='cpu'):
+        super(CIFARResnet50Wrapper, self).__init__()
+        # Load the pre-trained VGG16 model
+        self.network = torchvision.models.resnet50().to(device)#torchvision.models.vgg16().to(device)
+        self.dense_out = torch.nn.Linear(1000, 100, device = device)
+        self.output_logits = output_logits
 
-def load_pretrained_imagenet_model():
-    return ResNet50Wrapper(weights="DEFAULT", device=device).eval()
+    def forward(self, x):
+        # Forward pass through the pre-trained ResNet50
+        x = self.network(x)
+        logits = self.dense_out(x)
+        # Apply softmax to convert logits to probabilities
+        if self.output_logits:
+            return logits
+        probabilities = F.softmax(logits, dim=1)
+        return probabilities
+
+def load_pretrained_imagenet_model(arch = 'resnet50'):
+    if arch == 'vgg16':
+        print('Loading VGG16')
+        network = torchvision.models.vgg16(weights="IMAGENET1K_V1").to(device).eval()
+    elif arch == 'resnet50':
+        print('Loading Resnet50')
+        network = torchvision.models.resnet50(weights="DEFAULT").to(device).eval()
+    else:
+        raise Exception('ERROR: Unknown imagenet architecture', arch)
+    return LogitToOHEWrapper(network)
+        
 
 def load_pretrained_mnist_model(path):
     network = MNISTClassifier()
+
+    if os.path.isfile(path):
+        network.load_state_dict(torch.load(path))
+        network.eval()
+        network.to(device)
+    else:
+        raise Exception('ERROR: Could not find model at ',path)
+    return network
+
+def load_pretrained_cifar_model(path):
+    network = CIFARResnet50Wrapper(output_logits=False)
 
     if os.path.isfile(path):
         network.load_state_dict(torch.load(path))
@@ -124,10 +160,42 @@ def get_imagenette_dataset(is_test=False, project_path:str='../'):
                                                 target_transform=transform_labels)
     return dataset
 
-def get_imagenette_train_loader(batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
-    dataset = get_imagenette_dataset(project_path=project_path)
-    train_loader = torch.utils.data.DataLoader(dataset, shuffle=False, batch_size=batch_size)
-    return train_loader
+def get_mnist_dataset(is_test=False, project_path:str='../'):
+    mnist_path = os.path.join(project_path, 'data', 'mnist')
+    return torchvision.datasets.MNIST(mnist_path, train=not is_test, download=True,
+                                    transform=torchvision.transforms.Compose([
+                                    torchvision.transforms.ToTensor(),
+                                    torchvision.transforms.Normalize(
+                                        (0.1307,), (0.3081,))
+                                    ]))
+
+def get_cifar_dataset(is_test=False, project_path:str='../'):
+    cifar_path = os.path.join(project_path, 'data', 'cifar')
+    return torchvision.datasets.CIFAR100(cifar_path, train=not is_test, download=True,
+                                    transform=torchvision.transforms.Compose([
+                                    torchvision.transforms.ToTensor(),
+                                    torchvision.transforms.Normalize(
+                                        mean=[0.5071, 0.4867, 0.4408],std=[0.2675, 0.2565, 0.2761])
+                                    ]))
+
+def get_image_loader(is_test:bool, dataset_name:str, batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+    if dataset_name == 'imagenet':
+        dataset = get_imagenette_dataset(project_path=project_path, is_test=is_test)
+    elif dataset_name == 'mnist':
+        dataset = get_mnist_dataset(project_path=project_path, is_test=is_test)
+    elif dataset_name == 'cifar':
+        dataset = get_cifar_dataset(project_path=project_path, is_test=is_test)
+    else:
+        raise Exception(f'Unknown image dataset: {dataset_name}')
+    
+    loader = torch.utils.data.DataLoader(dataset, shuffle=not is_test, batch_size=batch_size)
+    return loader
+
+def get_image_train_loader(dataset_name:str, batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+    return get_image_loader(False, dataset_name, batch_size, project_path)
+
+def get_image_test_loader(dataset_name:str, batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+    return get_image_loader(True, dataset_name, batch_size, project_path)
 
 '''
     Loads a file that contains a set of feature rankings for a given input
