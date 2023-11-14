@@ -16,8 +16,8 @@ import numpy as np
 from typing import Optional
 from matplotlib import pyplot as plt
 
-DATASET = 'imagenet'
-MODEL_NAME = 'vgg16'
+DATASET = 'cifar'
+MODEL_NAME = 'resnet50'
 GENERATION = ''
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):

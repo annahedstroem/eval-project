@@ -145,9 +145,9 @@ if __name__ == '__main__':
     NUM_RANKINGS = 10000
 
     # Load dataset
-    train_loader = fl.get_image_train_loader(DATASET, 52, PROJ_DIR)
+    test_loader = fl.get_image_test_loader(DATASET, 52, PROJ_DIR) # Test to avoid shuffle
 
-    examples = enumerate(train_loader)
+    examples = enumerate(test_loader)
     batch_idx, (x_train, y_train) = next(examples)
 
 
