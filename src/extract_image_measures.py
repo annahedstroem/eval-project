@@ -58,11 +58,11 @@ def compute_measures_for_sample(row:torch.Tensor,\
         # Dict to store all results
         all_measures = {}
         # Initialize all np arrays to speed up the process
-        for k in tqdm(size1_prefixes):
+        for k in size1_prefixes:
             for s in suffixes:
                 all_measures[k+s] = np.zeros((num_rankings, 1), dtype=np.float32)
 
-        for k in tqdm(sizeNUM_SAMPLES_prefixes):
+        for k in sizeNUM_SAMPLES_prefixes:
             for s in suffixes:
                 all_measures[k+s] = np.zeros((num_rankings, num_samples), dtype=np.float32 if 'is_hit' not in k else bool)
         all_measures['ranking'] = np.zeros((num_rankings, *input_shape), dtype=np.float32)
@@ -138,14 +138,17 @@ def compute_measures_for_sample(row:torch.Tensor,\
         return all_measures
 
 if __name__ == '__main__':
-    DATASET = 'cifar'
+    DATASET = 'imagenet'
     MODEL_NAME = 'resnet50'
-    GENERATORS = ['',  '_genetic','_captum']
-    SAMPLE_INDICES = [10, 20, 30, 40, 50]
+    GENERATORS = ['', '_genetic','_captum']
+    #SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
+    SAMPLE_INDICES = [2, 12, 22, 32, 42]
     NUM_RANKINGS = 10000
+    GENETIC_ITERATIONS = 10
 
     # Load dataset
-    test_loader = fl.get_image_test_loader(DATASET, 52, PROJ_DIR) # Test to avoid shuffle
+    #torch.manual_seed(0)
+    test_loader = fl.get_image_test_loader(DATASET, 100, PROJ_DIR, shuffle = True)
 
     examples = enumerate(test_loader)
     batch_idx, (x_train, y_train) = next(examples)
@@ -177,9 +180,9 @@ if __name__ == '__main__':
             row = x_train[sample_index].clone().detach().to(device)
             label = y_train[sample_index].clone().detach().to(device)
             
-            all_measures = compute_measures_for_sample(row, label, masking_values, NUM_RANKINGS, num_samples, generator_name)
+            all_measures = compute_measures_for_sample(row, label, masking_values, NUM_RANKINGS, num_samples, generator_name, genetic_iterations=GENETIC_ITERATIONS)
 
-            np.savez(os.path.join(PROJ_DIR, 'results', f'k{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_measures.npz'), \
+            np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_measures.npz'), \
                     row=row.to('cpu').numpy(), \
                     label=label.to('cpu').numpy(), \
                     rankings=all_measures['ranking'], \

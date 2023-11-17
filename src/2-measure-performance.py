@@ -16,7 +16,7 @@ import numpy as np
 from typing import Optional
 from matplotlib import pyplot as plt
 
-DATASET = 'cifar'
+DATASET = 'imagenet'
 MODEL_NAME = 'resnet50'
 GENERATION = ''
 

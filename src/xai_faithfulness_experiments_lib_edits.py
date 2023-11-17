@@ -178,7 +178,7 @@ def get_cifar_dataset(is_test=False, project_path:str='../'):
                                         mean=[0.5071, 0.4867, 0.4408],std=[0.2675, 0.2565, 0.2761])
                                     ]))
 
-def get_image_loader(is_test:bool, dataset_name:str, batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
+def get_image_loader(is_test:bool, dataset_name:str, batch_size:int = 24, project_path:str='../', shuffle:bool = False) -> torch.utils.data.DataLoader:
     if dataset_name == 'imagenet':
         dataset = get_imagenette_dataset(project_path=project_path, is_test=is_test)
     elif dataset_name == 'mnist':
@@ -188,14 +188,14 @@ def get_image_loader(is_test:bool, dataset_name:str, batch_size:int = 24, projec
     else:
         raise Exception(f'Unknown image dataset: {dataset_name}')
     
-    loader = torch.utils.data.DataLoader(dataset, shuffle=not is_test, batch_size=batch_size)
+    loader = torch.utils.data.DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
     return loader
 
 def get_image_train_loader(dataset_name:str, batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
     return get_image_loader(False, dataset_name, batch_size, project_path)
 
-def get_image_test_loader(dataset_name:str, batch_size:int = 24, project_path:str='../') -> torch.utils.data.DataLoader:
-    return get_image_loader(True, dataset_name, batch_size, project_path)
+def get_image_test_loader(dataset_name:str, batch_size:int = 24, project_path:str='../', shuffle:bool = False) -> torch.utils.data.DataLoader:
+    return get_image_loader(True, dataset_name, batch_size, project_path, shuffle)
 
 '''
     Loads a file that contains a set of feature rankings for a given input
