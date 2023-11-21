@@ -27,7 +27,14 @@ def compute_measures_for_sample(row:torch.Tensor,\
                                 with_quantus:bool = False) -> dict:
         input_shape = row.shape
         print(f'Generating {generator_mode} rankings...')
-        if generator_mode == "_genetic":
+        if generator_mode == "_full":
+            import itertools
+            num_vars = 1
+            for s in input_shape:
+                num_vars *= s
+            permutations = list(itertools.permutations(range(num_vars)))
+            all_rankings = np.reshape(np.array(permutations) / (num_vars - 1), (len(permutations), *input_shape))
+        elif generator_mode == "_genetic":
             # Genetically optimized
             def fitness(ranking:np.ndarray) -> float:
                 measures = fl.get_measures_for_ranking(row, torch.tensor(ranking, dtype=torch.float32).to(device), label, network, num_samples=num_samples, with_inverse=with_inverse, with_random=with_random, masking_values=masking_values)
@@ -139,19 +146,27 @@ def compute_measures_for_sample(row:torch.Tensor,\
 
 if __name__ == '__main__':
     DATASET = 'imagenet'
-    MODEL_NAME = 'resnet50'
+    MODEL_NAME = 'vgg16'
     GENERATORS = ['', '_genetic','_captum']
     #SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
     SAMPLE_INDICES = [2, 12, 22, 32, 42]
+    #SAMPLE_INDICES = [10, 20, 30, 40, 50]
     NUM_RANKINGS = 10000
-    GENETIC_ITERATIONS = 10
+    GENETIC_ITERATIONS = 50
 
     # Load dataset
-    #torch.manual_seed(0)
-    test_loader = fl.get_image_test_loader(DATASET, 100, PROJ_DIR, shuffle = True)
-
-    examples = enumerate(test_loader)
-    batch_idx, (x_train, y_train) = next(examples)
+    if DATASET == '20newsgroups-truncated':
+        DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
+        # Load dataset
+        file_data = np.load(DATASET_PATH)
+        x_train = torch.from_numpy(file_data['x_train']).float().to(device)
+        y_train = torch.from_numpy(file_data['y_train']).to(device)
+    else:
+        #torch.manual_seed(0)
+        test_loader = fl.get_image_test_loader(DATASET, 100, PROJ_DIR, shuffle = True)
+    
+        examples = enumerate(test_loader)
+        batch_idx, (x_train, y_train) = next(examples)
 
 
     # Load model
@@ -163,6 +178,9 @@ if __name__ == '__main__':
     elif DATASET == 'cifar':
         MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-{MODEL_NAME}-mlp.pth')
         network = fl.load_pretrained_cifar_model(MODEL_PATH)
+    elif DATASET == '20newsgroups-truncated':
+        MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}{MODEL_NAME}-mlp.pth')
+        network = fl.load_pretrained_mlp_large_model(MODEL_PATH, x_train.shape[1], 20, [1000, 1000, 800, 500])
     else:
         raise Exception(f'ERROR: Unknown dataset {DATASET}')
 

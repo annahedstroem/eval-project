@@ -7,4 +7,4 @@ old/
 *.ipynb_checkpoints*
 results/
 data/
-data/
+assets/models/20newsgroups*

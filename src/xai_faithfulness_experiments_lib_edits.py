@@ -51,15 +51,50 @@ class MLP(torch.nn.Module):
         logits = self.fc2(x)
         x = self.ac2(logits)
         return x
+
+class MLPLarge(torch.nn.Module):
+    def __init__(self, num_features, num_labels, n_neurons, return_logits = False):
+        assert len(n_neurons) == 4, 'Four hidden layers are needed'
+        super(MLPLarge, self).__init__()
+        self.fc1 = torch.nn.Linear(num_features, n_neurons[0])
+        self.ac1 = torch.nn.ReLU()
+        self.d1 = torch.nn.Dropout(0.7)
+        self.fc2 = torch.nn.Linear(n_neurons[0], n_neurons[1])
+        self.ac2 = torch.nn.ReLU()
+        self.d2 = torch.nn.Dropout(0.7)
+        self.fc3 = torch.nn.Linear(n_neurons[1], n_neurons[2])
+        self.ac3 = torch.nn.ReLU()
+        self.d3 = torch.nn.Dropout(0.7)
+        self.fc4 = torch.nn.Linear(n_neurons[2], n_neurons[3])
+        self.ac4 = torch.nn.ReLU()
+        self.d4 = torch.nn.Dropout(0.5)
+        self.fc_out = torch.nn.Linear(n_neurons[-1], num_labels)
+        self.ac_out = torch.nn.Softmax(dim=-1)
+        self.return_logits = return_logits
+    
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.ac1(x)
+        x = self.d1(x)
+        x = self.fc2(x)
+        x = self.ac2(x)
+        x = self.d2(x)
+        x = self.fc3(x)
+        x = self.ac3(x)
+        x = self.d3(x)
+        x = self.fc4(x)
+        x = self.ac4(x)
+        x = self.d4(x)
+        logits = self.fc_out(x)
+        x = logits if self.return_logits else self.ac_out(logits)
+        return x
     
 class LogitToOHEWrapper(torch.nn.Module):
     def __init__(self, network, weights='DEFAULT', device='cpu'):
         super(LogitToOHEWrapper, self).__init__()
-        # Load the pre-trained ResNet50 model
         self.network = network
 
     def forward(self, x):
-        # Forward pass through the pre-trained ResNet50
         logits = self.network(x)
         # Apply softmax to convert logits to probabilities
         probabilities = F.softmax(logits, dim=1)
@@ -119,6 +154,17 @@ def load_pretrained_cifar_model(path):
 
 def load_pretrained_mlp_model(path, num_features, num_labels, num_neurons):
     network = MLP(num_features, num_labels, num_neurons)
+
+    if os.path.isfile(path):
+        network.load_state_dict(torch.load(path))
+        network.eval()
+        network.to(device)
+    else:
+        raise Exception('ERROR: Could not find model at ',path)
+    return network
+
+def load_pretrained_mlp_large_model(path, num_features, num_labels, num_neurons):
+    network = MLPLarge(num_features, num_labels, num_neurons)
 
     if os.path.isfile(path):
         network.load_state_dict(torch.load(path))
