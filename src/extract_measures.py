@@ -15,7 +15,8 @@ import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'Using {device}')
 
-def compute_measures_for_sample(row:torch.Tensor,\
+def compute_measures_for_sample(network:torch.nn.Module,\
+                                row:torch.Tensor,\
                                 label:torch.Tensor,\
                                 masking_values:torch.Tensor,\
                                 num_rankings: int,\
@@ -146,11 +147,12 @@ def compute_measures_for_sample(row:torch.Tensor,\
 
 if __name__ == '__main__':
     DATASET = 'imagenet'
-    MODEL_NAME = 'vgg16'
-    GENERATORS = ['', '_genetic','_captum']
-    #SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
-    SAMPLE_INDICES = [2, 12, 22, 32, 42]
+    MODEL_NAME = 'resnet18'
+    GENERATORS = ['', '_genetic','_captum'] # Empty means random. Another alternative is '_full', that generates all possible rankings
+    SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
+    #SAMPLE_INDICES = [2, 12, 22, 32, 42]
     #SAMPLE_INDICES = [10, 20, 30, 40, 50]
+    NEEDED_SAMPLES = 5
     NUM_RANKINGS = 10000
     GENETIC_ITERATIONS = 50
 
@@ -192,13 +194,24 @@ if __name__ == '__main__':
     # The mean is zero because this dataset is standardized
     masking_values = torch.from_numpy(np.zeros(x_train.shape[1:])).float().to(device)
 
+    correct_samples = 0
+
     for generator_name in GENERATORS:
         for sample_index in SAMPLE_INDICES:
-            print('Processing', sample_index)
+            if correct_samples >= NEEDED_SAMPLES:
+                break
             row = x_train[sample_index].clone().detach().to(device)
             label = y_train[sample_index].clone().detach().to(device)
             
-            all_measures = compute_measures_for_sample(row, label, masking_values, NUM_RANKINGS, num_samples, generator_name, genetic_iterations=GENETIC_ITERATIONS)
+            print(f'Processing {sample_index} ({network(row.unsqueeze(dim=0))[0,label].item()})')
+            if network(row.unsqueeze(dim=0))[0,label].item() < 0.75:
+                #raise Exception(f'Sample {sample_index} does not have high activation')
+                print(f'Skipping sample {sample_index} for not having high activation')
+                continue
+            
+            correct_samples += 1
+
+            all_measures = compute_measures_for_sample(network, row, label, masking_values, NUM_RANKINGS, num_samples, generator_name, genetic_iterations=GENETIC_ITERATIONS)
 
             np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_measures.npz'), \
                     row=row.to('cpu').numpy(), \

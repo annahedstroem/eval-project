@@ -17,7 +17,7 @@ from typing import Optional
 from matplotlib import pyplot as plt
 
 DATASET = 'imagenet'
-MODEL_NAME = 'resnet50'
+MODEL_NAME = 'resnet18'
 GENERATION = ''
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):

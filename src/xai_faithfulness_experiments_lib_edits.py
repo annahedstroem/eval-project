@@ -125,6 +125,9 @@ def load_pretrained_imagenet_model(arch = 'resnet50'):
     elif arch == 'resnet50':
         print('Loading Resnet50')
         network = torchvision.models.resnet50(weights="DEFAULT").to(device).eval()
+    elif arch == 'resnet18':
+        print('Loading Resnet18')
+        network = torchvision.models.resnet18(weights="DEFAULT").to(device).eval()
     else:
         raise Exception('ERROR: Unknown imagenet architecture', arch)
     return LogitToOHEWrapper(network)
