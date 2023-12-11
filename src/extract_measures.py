@@ -194,9 +194,8 @@ if __name__ == '__main__':
     # The mean is zero because this dataset is standardized
     masking_values = torch.from_numpy(np.zeros(x_train.shape[1:])).float().to(device)
 
-    correct_samples = 0
-
     for generator_name in GENERATORS:
+        correct_samples = 0
         for sample_index in SAMPLE_INDICES:
             if correct_samples >= NEEDED_SAMPLES:
                 break
@@ -213,7 +212,7 @@ if __name__ == '__main__':
 
             all_measures = compute_measures_for_sample(network, row, label, masking_values, NUM_RANKINGS, num_samples, generator_name, genetic_iterations=GENETIC_ITERATIONS)
 
-            np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_measures.npz'), \
+            np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_b_measures.npz'), \
                     row=row.to('cpu').numpy(), \
                     label=label.to('cpu').numpy(), \
                     rankings=all_measures['ranking'], \

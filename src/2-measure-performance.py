@@ -72,7 +72,7 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         indices = np.arange(z_scores.shape[0])
         z_scores_numbered = np.vstack((z_scores, indices))
         level_indices = []
-        boundaries = [0.5, 1, 1.5, 2, 2.5, 3, 3.5]
+        boundaries = [0.5, 1, 1.5, 2, 2.5]#, 3, 3.5]
         for i in range(1,len(boundaries)+1):
             bottom_limit = boundaries[i-1]
             top_limit = float('inf')
