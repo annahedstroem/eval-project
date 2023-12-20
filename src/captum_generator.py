@@ -5,7 +5,7 @@ import sys
 PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
-from captum.attr import Saliency, IntegratedGradients, InputXGradient, LRP, GuidedBackprop, Deconvolution
+from captum.attr import Saliency, IntegratedGradients, InputXGradient, LRP, GuidedBackprop, Deconvolution, LayerAttribution, LayerGradCam, GuidedGradCam
 
 
 def _to_ranking(attributions:np.ndarray) -> np.ndarray:
@@ -27,7 +27,23 @@ def generate_rankings(row:torch.Tensor, label:torch.Tensor, model:torch.nn.Modul
                     InputXGradient(model).attribute(inputs=x_batch, target=y_batch).detach().cpu().numpy()[0],\
                     GuidedBackprop(model).attribute(inputs=x_batch, target=y_batch).detach().cpu().numpy()[0],\
                     Deconvolution(model).attribute(inputs=x_batch, target=y_batch).detach().cpu().numpy()[0]]##,\
-                    #LRP(model).attribute(inputs=x_batch, target=y_batch).detach().cpu().numpy()[0]]
+                    #LRP(model).attribute(inputs=x_batch, target=y_batch).detach().cpu().numpy()[0]] # Not suited for all models
+
+    layers = model.modules()
+    conv_layers = [l for l in layers if type(l) == torch.nn.modules.conv.Conv2d]
+    if len(conv_layers) > 0:
+        last_conv = conv_layers[-1]
+        # GradCAM
+        explanation = LayerGradCam(model, last_conv).attribute(inputs=x_batch, target=y_batch)
+        explanation = LayerAttribution.interpolate(explanation, row.shape[1:])
+        explanation = torch.stack([explanation, explanation, explanation], dim=1).squeeze()
+        attributions.append(explanation.detach().cpu().numpy())
+
+        # GuidedGradCAM
+        explanation = GuidedGradCam(model, last_conv).attribute(inputs=x_batch, target=y_batch)
+        explanation = LayerAttribution.interpolate(explanation, row.shape[1:])
+        explanation = explanation.squeeze()
+        attributions.append(explanation.detach().cpu().numpy())
     
     attributions = list(map(_to_ranking, attributions))
 
@@ -37,7 +53,7 @@ if __name__ == '__main__':
     #TESTS
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f'Using {device}')
-    train_loader = fl.get_imagenette_train_loader(52, PROJ_DIR)
+    train_loader = fl.get_image_train_loader('imagenet', 52, PROJ_DIR)
 
     examples = enumerate(train_loader)
     batch_idx, (x_train, y_train) = next(examples)

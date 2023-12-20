@@ -5,8 +5,6 @@ PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(os.path.join(PROJ_DIR,'src'))
 import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
-from typing import Optional
-from tqdm import tqdm
 import captum_generator as cg
 import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -18,11 +16,8 @@ Z_SCORE_THRESHOLD = 4
 DESIRED_EXPLANATIONS = 1000
 BATCH_SIZE = 256
 
-DATASET = 'imagenet'
-MODEL_NAME = 'resnet18'
-
 for DATASET in ['imagenet']:
-    for MODEL_NAME in ['resnet50', 'vgg16']:
+    for MODEL_NAME in ['resnet18-logits','resnet50-logits', 'vgg16-logits']:
         # Load dataset
         if DATASET == '20newsgroups-truncated':
             DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
@@ -37,8 +32,8 @@ for DATASET in ['imagenet']:
 
 
         # Load model
-        if DATASET == 'imagenet':
-            network = fl.load_pretrained_imagenet_model(arch = MODEL_NAME)
+        if DATASET.startswith('imagenet'):
+            network = fl.load_pretrained_imagenet_model(arch = MODEL_NAME.replace('-logits',''), use_logits = 'logits' in MODEL_NAME)
         elif DATASET == 'mnist':
             MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}-{MODEL_NAME}-mlp.pth')
             network = fl.load_pretrained_mnist_model(MODEL_PATH)
@@ -51,7 +46,7 @@ for DATASET in ['imagenet']:
         else:
             raise Exception(f'ERROR: Unknown dataset {DATASET}')
 
-        FILENAME = f'{DATASET}_{MODEL_NAME}_exceptionals.pkl'
+        FILENAME = f'{DATASET}_{MODEL_NAME}_noise_exceptionals.pkl'
 
         if os.path.isfile(os.path.join(PROJ_DIR, 'results', FILENAME)):
             with open(os.path.join(PROJ_DIR, 'results', FILENAME), 'rb') as fIn:
@@ -75,6 +70,10 @@ for DATASET in ['imagenet']:
                         input_shape = x_train.shape[1:]
                     # Find elements from the batch that activate the network enough
                     outputs = network(x_train.to(device))
+
+                    if 'logits' in MODEL_NAME:
+                        outputs = torch.softmax(outputs, dim = -1)
+
                     activated_indices = (outputs[torch.arange(x_train.shape[0]), y_train]>ACTIVATION_THRESHOLD).nonzero().flatten()
 
                     for i, sample_index in enumerate(activated_indices):
@@ -115,10 +114,11 @@ for DATASET in ['imagenet']:
                 row  = v['row']
                 ranking = v['ranking']
                 label = v['label']
-                measures = fl.get_measures_for_ranking(row, ranking, label, network, with_inverse=True, with_random=True, masking_values=masking_values)
+                measures = fl.get_measures_for_ranking(row, ranking, label, network, with_inverse=True, with_random=True, masking_values=masking_values, noisy_inverse=True)
                 v['qmean'] = measures['mean']
                 v['qinv'] = measures['mean_inv']
                 v['qbas'] = measures['mean_bas']
+                v['inverse_ranking'] = measures['inverse_ranking']
                 results.append(v)
             with open(os.path.join(PROJ_DIR, 'results', FILENAME), 'wb') as fOut:
                 pickle.dump(results, fOut)

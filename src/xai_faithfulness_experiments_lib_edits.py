@@ -118,7 +118,7 @@ class CIFARResnet50Wrapper(torch.nn.Module):
         probabilities = F.softmax(logits, dim=1)
         return probabilities
 
-def load_pretrained_imagenet_model(arch = 'resnet50'):
+def load_pretrained_imagenet_model(arch = 'resnet50', use_logits = False):
     if arch == 'vgg16':
         print('Loading VGG16')
         network = torchvision.models.vgg16(weights="IMAGENET1K_V1").to(device).eval()
@@ -130,6 +130,8 @@ def load_pretrained_imagenet_model(arch = 'resnet50'):
         network = torchvision.models.resnet18(weights="DEFAULT").to(device).eval()
     else:
         raise Exception('ERROR: Unknown imagenet architecture', arch)
+    if use_logits:
+        return network
     return LogitToOHEWrapper(network)
         
 
@@ -439,7 +441,8 @@ def get_measures_for_ranking(input:torch.Tensor, \
                               num_samples:int = NUM_SAMPLES, \
                               with_inverse:bool = False, \
                               with_random:bool = False, \
-                              masking_values:torch.Tensor = None) -> dict:
+                              masking_values:torch.Tensor = None,\
+                              noisy_inverse:bool = False) -> dict:
     '''
     Given an input, a target output, a model and a ranking (ordering of the input variables, indicated with values between 0 and 1), computes:
       - Output curve with as many points as indicated by num_samples
@@ -468,9 +471,15 @@ def get_measures_for_ranking(input:torch.Tensor, \
 
     if with_inverse:
         # Get the measures for the inverse ranking
-        result_inverse = get_measures_for_ranking(input, 1-ranking_row, output_label, model, measures, num_samples, with_inverse=False, with_random=False, masking_values=masking_values)
+        inverse_ranking = 1 - ranking_row
+        if noisy_inverse:
+            attributions = inverse_ranking + _get_random_ranking_row(ranking_row.shape)
+            inverse_ranking = _attributions_to_ranking_row(attributions.flatten().detach().cpu().numpy())
+            inverse_ranking = torch.tensor(inverse_ranking.reshape(ranking_row.shape)).to(device)
+        result_inverse = get_measures_for_ranking(input, inverse_ranking, output_label, model, measures, num_samples, with_inverse=False, with_random=False, masking_values=masking_values)
         result['output_curve_inv'] = result_inverse['output_curve']
         result['is_hit_curve_inv'] = result_inverse['is_hit_curve']
+        result['inverse_ranking'] = inverse_ranking
         for measure in measures:
             if measure=='mean':
                 result['mean_inv'] = result['mean'] - result_inverse['mean']
