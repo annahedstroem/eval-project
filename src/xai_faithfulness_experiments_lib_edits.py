@@ -132,7 +132,7 @@ def load_pretrained_imagenet_model(arch = 'resnet50', use_logits = False):
         raise Exception('ERROR: Unknown imagenet architecture', arch)
     if use_logits:
         return network
-    return LogitToOHEWrapper(network)
+    return LogitToOHEWrapper(network).eval()
         
 
 def load_pretrained_mnist_model(path):
