@@ -10,6 +10,7 @@ import torchvision.transforms as transforms
 from torchvision.datasets import ImageFolder
 import torch.nn.functional as F
 import PIL
+import pickle
 PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PATH_DIR = './'
@@ -139,7 +140,18 @@ def load_pretrained_imagenet_model(arch = 'resnet50', use_logits = False):
     if use_logits:
         return network
     return LogitToOHEWrapper(network).eval()
-        
+
+def load_pretrained_cmnist_resnet18_model(path):
+    if os.path.isfile(path):
+        # Example for how to reload assets and models to notebook.
+        network = torchvision.models.resnet18(weights='DEFAULT')
+        network.fc = torch.nn.Linear(network.fc.in_features, 10)
+        network.load_state_dict(torch.load(path))
+        network.eval()
+        network.to(device)
+    else:
+        raise Exception('ERROR: Could not find model at ',path)
+    return network        
 
 def load_pretrained_mnist_model(path):
     network = MNISTClassifier()
@@ -253,6 +265,27 @@ def get_image_train_loader(dataset_name:str, batch_size:int = 24, project_path:s
 
 def get_image_test_loader(dataset_name:str, batch_size:int = 24, project_path:str='../', shuffle:bool = False) -> torch.utils.data.DataLoader:
     return get_image_loader(True, dataset_name, batch_size, project_path, shuffle)
+
+class CMNISTDataset(torch.utils.data.Dataset):
+    def __init__(self, dict_file_path:str):
+        with open(dict_file_path, 'rb') as fIn:
+            self.data = pickle.load(fIn)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]['x'], self.data[idx]['y']
+    
+def get_cmnist_train_loader(dict_file_path:str, batch_size:int = 256, num_workers:int = 4) -> torch.utils.data.DataLoader:
+    train_set = CMNISTDataset(dict_file_path=dict_file_path)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    return train_loader
+
+def get_cmnist_test_loader(dict_file_path:str, batch_size:int = 256, num_workers:int = 4) -> torch.utils.data.DataLoader:
+    test_set = CMNISTDataset(dict_file_path=dict_file_path)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    return test_loader
 
 '''
     Loads a file that contains a set of feature rankings for a given input
