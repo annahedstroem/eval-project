@@ -128,6 +128,12 @@ def load_pretrained_imagenet_model(arch = 'resnet50', use_logits = False):
     elif arch == 'resnet18':
         print('Loading Resnet18')
         network = torchvision.models.resnet18(weights="DEFAULT").to(device).eval()
+    elif arch == 'maxvit_t':
+        print('Loading MaxViT_t')
+        network = torchvision.models.maxvit_t(weights="IMAGENET1K_V1").to(device).eval()
+    elif arch == 'vit_b_32':
+        print('Loading ViT_b_32')
+        network = torchvision.models.vit_b_32(weights="IMAGENET1K_V1").to(device).eval()
     else:
         raise Exception('ERROR: Unknown imagenet architecture', arch)
     if use_logits:
@@ -348,6 +354,14 @@ def _get_random_ranking_row(dimensions:tuple[int]) -> torch.Tensor:
   input = np.random.permutation(num_elems).reshape(dimensions)/(num_elems-1)
   return torch.tensor(input, dtype=torch.float32).to(device)
 
+def _get_chunky_random_ranking_row(dimensions:tuple[int], chunk_height:int, chunk_width:int, single_channel:bool) -> torch.Tensor:
+    chunky_shape = (1 if single_channel else dimensions[0], dimensions[1]//chunk_height, dimensions[2]//chunk_width)
+    random_row = _get_random_ranking_row(chunky_shape)
+    upscaled_ranking = F.interpolate(random_row.unsqueeze(0), size=dimensions[1:], mode='nearest').squeeze(0)
+    if single_channel:
+        upscaled_ranking = upscaled_ranking.repeat(dimensions[0], 1, 1)
+    return upscaled_ranking
+
 def _get_class_logits_for_masked_inputs(original_input, alternative_input, ranking_row, selection_levels, model, class_num):
   with torch.no_grad():
     # Send everything to device and work there
@@ -525,3 +539,21 @@ def get_measures_for_attributions(input:torch.Tensor, \
     '''
     ranking_row = torch.from_numpy(_attributions_to_ranking_row(attributions))
     return get_measures_for_ranking(input, ranking_row, output_label, model, measures, num_samples, with_inverse, with_random, masking_values=masking_values)
+
+
+if __name__ == '__main__':
+    attributions = np.array([8.0,3.2,0.1,3.2,3.2])
+    r1 = _attributions_to_ranking_row(attributions, reverse = False)
+    print(r1)
+    i2 = np.argsort(attributions)
+    v2 = np.linspace(0,1,attributions.size)
+    r2 = np.empty_like(v2)
+    r2[i2] = v2
+    equal = attributions[i2[:-1]]==attributions[i2[1:]]
+    print(i2)
+    print(equal)
+    i_equal = np.where(equal)[0] + 1
+    print(i_equal)
+    print(attributions[i2[i_equal]])
+    r2[i2[i_equal]] = 7
+    print(r2)

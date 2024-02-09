@@ -15,9 +15,10 @@ ACTIVATION_THRESHOLD = 0.9
 Z_SCORE_THRESHOLD = 4
 DESIRED_EXPLANATIONS = 1000
 BATCH_SIZE = 256
+CHUNKINESS = 32
 
 for DATASET in ['imagenet']:
-    for MODEL_NAME in ['resnet18-logits','resnet50-logits', 'vgg16-logits']:
+    for MODEL_NAME in ['resnet50', 'vgg16']:#['resnet18-logits','resnet50-logits', 'vgg16-logits', 'maxvit_t', 'vit_b_32']:
         # Load dataset
         if DATASET == '20newsgroups-truncated':
             DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
@@ -46,7 +47,7 @@ for DATASET in ['imagenet']:
         else:
             raise Exception(f'ERROR: Unknown dataset {DATASET}')
 
-        FILENAME = f'{DATASET}_{MODEL_NAME}_noise_exceptionals.pkl'
+        FILENAME = f'{DATASET}_{MODEL_NAME}_noise_exceptionals_chunky.pkl'
 
         if os.path.isfile(os.path.join(PROJ_DIR, 'results', FILENAME)):
             with open(os.path.join(PROJ_DIR, 'results', FILENAME), 'rb') as fIn:
@@ -85,7 +86,7 @@ for DATASET in ['imagenet']:
                         #Compute 100 random rankings to compute the average q
                         qmeans = []
                         for _ in range(100):
-                            measures = fl.get_measures_for_ranking(row, fl._get_random_ranking_row(row.shape), label, network, with_inverse=False, with_random=False, masking_values=masking_values)
+                            measures = fl.get_measures_for_ranking(row, fl._get_chunky_random_ranking_row(row.shape, CHUNKINESS, CHUNKINESS, True), label, network, with_inverse=False, with_random=False, masking_values=masking_values)
                             qmeans.append(measures['mean'])
                         qmean_mean = np.mean(qmeans)
                         qmean_std = np.std(qmeans)
@@ -114,7 +115,7 @@ for DATASET in ['imagenet']:
                 row  = v['row']
                 ranking = v['ranking']
                 label = v['label']
-                measures = fl.get_measures_for_ranking(row, ranking, label, network, with_inverse=True, with_random=True, masking_values=masking_values, noisy_inverse=True)
+                measures = fl.get_measures_for_ranking(row, ranking, label, network, with_inverse=True, with_random=True, masking_values=masking_values, noisy_inverse=False)
                 v['qmean'] = measures['mean']
                 v['qinv'] = measures['mean_inv']
                 v['qbas'] = measures['mean_bas']

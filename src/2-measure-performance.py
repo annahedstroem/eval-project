@@ -18,19 +18,20 @@ from matplotlib import pyplot as plt
 
 DATASET = 'imagenet'
 MODEL_NAME = 'resnet18'
-GENERATION = ''
+GENERATION = '_random'
+TARGET_MEASURE = 'faithfulness_correlation' # 'qmeans' | 'faithfulness_correlation'
 
 for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
-    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_measures.npz'):
+    if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}_fc_measures.npz'):
         print(FILENAME)
 
         # Load data
         data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))
         
-        qmeans = data['qmeans']
+        qmeans = data[TARGET_MEASURE]
         #qmeans_basX = [data['qmean_bas']] # We don't look at qmean_bas, it will be recomputed later with the appropriate reference
         qmeans_basX = []
-        qmeans_inv = data['qmean_invs']
+        qmeans_inv = data['qmean_invs' if TARGET_MEASURE=='qmeans' else TARGET_MEASURE + '_inv']
 
         # Compute qmeans_bas[2-10]
         def compute_qbas(measure, num_samples, reference:np.ndarray):
@@ -51,8 +52,8 @@ for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
         
         if GENERATION in ['_genetic', '_captum']:
             # If data is genetic, we'll load the random generated equivalent to compute qbas with
-            data_reference = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME.replace(GENERATION, '')))
-            qmeans_reference = data_reference['qmeans']
+            data_reference = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME.replace(GENERATION, ''))) # or '_random'
+            qmeans_reference = data_reference[TARGET_MEASURE]
 
         for i in range(1,11):
             # If data is genetic, compute qbas with random data from other file
