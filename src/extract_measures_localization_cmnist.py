@@ -103,11 +103,14 @@ def compute_measures_for_sample(network:torch.nn.Module,\
 
         for k in localization_functions:
             all_measures[k] = np.zeros(num_rankings, dtype=np.float32)
+            all_measures[k + '_inv'] = np.zeros(num_rankings, dtype=np.float32)
 
         for i in tqdm(range(num_rankings),  miniters=1000):
             all_measures['ranking'][i] = all_rankings[i]
             #For each ranking, retrieve and store Quantus' localization metrics
-            a_batch = np.expand_dims(all_rankings[i].sum(axis=0, keepdims=True), 0)
+            ranking = all_rankings[i]
+            a_batch = np.expand_dims(ranking.sum(axis=0, keepdims=True), 0)
+            a_batch_inv = np.expand_dims((1-ranking).sum(axis=0, keepdims=True), 0)
             for k in localization_functions:
                 f = localization_functions[k]
                 all_measures[k][i] = f(model=network, 
@@ -115,6 +118,11 @@ def compute_measures_for_sample(network:torch.nn.Module,\
                                         y_batch=y_batch,
                                         a_batch=a_batch,
                                         s_batch=s_batch)[0]
+                all_measures[k + '_inv'][i] = all_measures[k][i] - f(model=network, 
+                                                                    x_batch=x_batch, 
+                                                                    y_batch=y_batch,
+                                                                    a_batch=a_batch_inv,
+                                                                    s_batch=s_batch)[0]
         return all_measures
 
 if __name__ == '__main__':
@@ -124,7 +132,7 @@ if __name__ == '__main__':
     SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
 
     # For GENERATORS, empty means random. '_genetic', '_captum', Another alternative is '_full', that generates all possible rankings
-    tuples_to_test = [('cmnist', 'resnet18', ['_chunky', '_random', '_captum'])]
+    tuples_to_test = [('cmnist', 'resnet18', ['_random', '_captum', '_chunky'])]
 
     for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
         # Load dataset
@@ -156,7 +164,7 @@ if __name__ == '__main__':
                 label = y_train[sample_index].clone().detach().to(device)
                 s_mask = s_train[sample_index].clone().detach().to(device)
                 
-                softmax_output = torch.nn.functional.softmax(network(row.unsqueeze(dim=0)))[0,label].item()
+                softmax_output = torch.nn.functional.softmax(network(row.unsqueeze(dim=0)), dim=1)[0,label].item()
 
                 print(f'Processing {sample_index} ({softmax_output})')
                 if softmax_output < 0.75:
@@ -172,9 +180,10 @@ if __name__ == '__main__':
                 localization_results = {}
                 for k in localization_functions:
                     localization_results[k] = all_measures[k]
+                    localization_results[k + '_inv'] = all_measures[k + '_inv']
                 
-                np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_localization_{mask_name}_chunky_measures.npz'), \
+                np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_localization_{mask_name}_measures.npz'), \
                         row=row.to('cpu').numpy(), \
                         label=label.to('cpu').numpy(), \
                         rankings=all_measures['ranking'], \
-                        *localization_results)
+                        **localization_results)
