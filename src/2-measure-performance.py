@@ -18,8 +18,8 @@ from matplotlib import pyplot as plt
 
 DATASET = 'cmnist'
 MODEL_NAME = 'resnet18'
-GENERATIONS = ['_random', '_captum', '_chunky']
-TARGET_MEASURES = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'AUC'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
+GENERATIONS = ['_randomattr']#['_random', '_captum', '_chunky']
+TARGET_MEASURES = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
 
 for TARGET_MEASURE in TARGET_MEASURES:
     for GENERATION in GENERATIONS:
@@ -29,9 +29,6 @@ for TARGET_MEASURE in TARGET_MEASURES:
 
                 # Load data
                 data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))
-
-                for k in data.keys():
-                    print(k)
                 
                 qmeans = data[TARGET_MEASURE]
                 #qmeans_basX = [data['qmean_bas']] # We don't look at qmean_bas, it will be recomputed later with the appropriate reference

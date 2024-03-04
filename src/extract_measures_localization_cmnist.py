@@ -17,11 +17,30 @@ print(f'Using {device}')
 
 DEFAULT_CHUNKINESS = 4
 
-localization_functions = {'AttributionLocalisation': AttributionLocalisation(disable_warnings=True),\
+def manual_attribution_localization(model, x_batch, y_batch, a_batch, s_batch):
+    '''Assumes single element batches'''
+    # Prepare shapes.
+    a = a_batch.flatten()
+    a = np.clip(a, 0, None)
+    s = s_batch.flatten().astype(bool)
+
+    # Compute ratio.
+    size_bbox = float(np.sum(s))
+    size_data = s.size
+    ratio = size_bbox / size_data
+
+    # Compute inside/outside ratio.
+    inside_attribution = np.sum(a[s])
+    total_attribution = np.sum(a)
+    inside_attribution_ratio = float(inside_attribution / total_attribution)
+    return np.array([inside_attribution_ratio])
+
+localization_functions = {'AttributionLocalisation': manual_attribution_localization,\
                           'TopKIntersection': TopKIntersection(disable_warnings=True),\
                           'RelevanceRankAccuracy': RelevanceRankAccuracy(disable_warnings=True),\
                           'RelevanceMassAccuracy': RelevanceMassAccuracy(disable_warnings=True),\
                           'AUC': AUC(disable_warnings=True)}
+#AttributionLocalisation(disable_warnings=True),\
 
 def compute_measures_for_sample(network:torch.nn.Module,\
                                 row:torch.Tensor,\
@@ -55,12 +74,15 @@ def compute_measures_for_sample(network:torch.nn.Module,\
             num_rankings = all_rankings.shape[0]
         elif generator_mode == "_chunky":
             #Random
-            all_rankings = np.zeros((num_rankings, *input_shape)) # To be randomly generated on the first loop
+            all_rankings = np.zeros((num_rankings, *input_shape)) # To be randomly generated on the next loop
             for i in tqdm(range(num_rankings)):
                 all_rankings[i] = fl._get_chunky_random_ranking_row(row.shape, chunkiness, chunkiness, True).cpu().numpy() # Random generation
+        elif generator_mode == "_randomattr":
+            #Random attribution
+            all_rankings = np.random.normal(size=(num_rankings, *input_shape))# Random attributions
         else:
             #Random
-            all_rankings = np.zeros((num_rankings, *input_shape)) # To be randomly generated on the first loop
+            all_rankings = np.zeros((num_rankings, *input_shape)) # To be randomly generated on the next loop
             for i in tqdm(range(num_rankings)):
                 all_rankings[i] = fl._get_random_ranking_row(row.shape).cpu().numpy() # Random generation
 
@@ -110,7 +132,10 @@ def compute_measures_for_sample(network:torch.nn.Module,\
             #For each ranking, retrieve and store Quantus' localization metrics
             ranking = all_rankings[i]
             a_batch = np.expand_dims(ranking.sum(axis=0, keepdims=True), 0)
-            a_batch_inv = np.expand_dims((1-ranking).sum(axis=0, keepdims=True), 0)
+            inverse = 1-ranking
+            if generator_mode=='_randomattr':
+                inverse = fl.get_inverse(ranking)
+            a_batch_inv = np.expand_dims(inverse.sum(axis=0, keepdims=True), 0)
             for k in localization_functions:
                 f = localization_functions[k]
                 all_measures[k][i] = f(model=network, 
@@ -132,7 +157,7 @@ if __name__ == '__main__':
     SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
 
     # For GENERATORS, empty means random. '_genetic', '_captum', Another alternative is '_full', that generates all possible rankings
-    tuples_to_test = [('cmnist', 'resnet18', ['_random', '_captum', '_chunky'])]
+    tuples_to_test = [('cmnist', 'resnet18', ['_randomattr'])]#['_random', '_captum', '_chunky']['_randomattr']
 
     for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
         # Load dataset
@@ -184,6 +209,7 @@ if __name__ == '__main__':
                 
                 np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_localization_{mask_name}_measures.npz'), \
                         row=row.to('cpu').numpy(), \
+                        s_mask=s_mask.to('cpu').numpy(), \
                         label=label.to('cpu').numpy(), \
                         rankings=all_measures['ranking'], \
                         **localization_results)

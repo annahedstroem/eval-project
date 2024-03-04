@@ -574,9 +574,59 @@ def get_measures_for_attributions(input:torch.Tensor, \
     return get_measures_for_ranking(input, ranking_row, output_label, model, measures, num_samples, with_inverse, with_random, masking_values=masking_values)
 
 
+def get_inverse_batched(attributions:np.ndarray) -> np.ndarray:
+    # Attributions needs to have only one axis. Otherwise, flatten, then, do this and then reshape back.
+    original_shape = attributions.shape
+    #attributions = attributions.flatten()
+    attributions = attributions.reshape((original_shape[0],-1))
+
+    #Inverse attributions - Sign change method
+    #inverse_attributions = -attributions
+
+    #Inverse attributions - Attribution value swapping method
+    i2 = np.argsort(attributions, axis=1)
+    inverse_attributions = np.empty_like(attributions)
+    # Apply the permutation to each row independently
+    inverse_attributions[np.arange(inverse_attributions.shape[0])[:, None], i2] = attributions[np.arange(inverse_attributions.shape[0])[:, None], i2[:,::-1]]
+
+    #Inverse attributions - Attribution value swapping method
+    #i2 = np.argsort(attributions)
+    #inverse_attributions = np.empty_like(attributions)
+    #inverse_attributions[i2] = attributions[i2[::-1]]
+
+    return inverse_attributions.reshape(original_shape)
+
+def get_inverse(attributions:np.ndarray) -> np.ndarray:
+    #return -attributions# + attributions.max()
+    # Attributions needs to have only one axis. Otherwise, flatten, then, do this and then reshape back.
+    original_shape = attributions.shape
+    attributions = attributions.flatten()
+
+    #Inverse attributions - Sign change method
+    #inverse_attributions = -attributions
+
+    #Inverse attributions - Attribution value swapping method
+    i2 = np.argsort(attributions)
+    inverse_attributions = np.empty_like(attributions)
+    # Apply the permutation to each row independently
+    inverse_attributions[i2] = attributions[i2[::-1]]
+
+    return inverse_attributions.reshape(original_shape)
+
 if __name__ == '__main__':
-    attributions = np.array([8.0,3.2,0.1,3.2,3.2])
-    r1 = _attributions_to_ranking_row(attributions, reverse = False)
+    attributions = np.random.normal(size=(2,3,4))#np.array([[8.0,3.2],[0.1,-3.2],[3.2, 10.0]])
+
+    print(attributions)
+    print(get_inverse(attributions))
+
+    from matplotlib import pyplot as plt
+
+    plt.plot(attributions.flatten())
+    plt.plot(get_inverse(attributions).flatten())
+    #plt.plot(-attributions.flatten())
+    plt.show()
+
+    '''r1 = _attributions_to_ranking_row(attributions, reverse = False)
     print(r1)
     i2 = np.argsort(attributions)
     v2 = np.linspace(0,1,attributions.size)
@@ -590,3 +640,4 @@ if __name__ == '__main__':
     print(attributions[i2[i_equal]])
     r2[i2[i_equal]] = 7
     print(r2)
+    '''

@@ -8,12 +8,31 @@ import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 from tqdm import tqdm
 import quantus
+from quantus.metrics.randomisation import EfficientMPRT
 import genetic_generator as gg
 import captum_generator as cg
 
 import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'Using {device}')
+
+quantus_functions = {'FaithfulnessCorrelation': quantus.FaithfulnessCorrelation(
+                                                            nr_runs=10,
+                                                            subset_size=4,  
+                                                            perturb_baseline="black",
+                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
+                                                            similarity_func=quantus.similarity_func.correlation_pearson,  
+                                                            abs=False,
+                                                            normalise=False,
+                                                            return_aggregate=False,
+                                                            disable_warnings=True
+                                                        ),\
+                    'EfficientMPRT': EfficientMPRT(
+                                                        abs=False,
+                                                        normalise=False,
+                                                        return_aggregate=False,
+                                                        disable_warnings=True
+                                                    )}
 
 def compute_measures_for_sample(network:torch.nn.Module,\
                                 row:torch.Tensor,\
@@ -93,11 +112,9 @@ def compute_measures_for_sample(network:torch.nn.Module,\
         x_batch = x_batch_pt.to('cpu').numpy()
         y_batch = torch.unsqueeze(label, dim=0).to('cpu').numpy()
 
-        all_measures['faithfulness_correlation'] = np.zeros(num_rankings, dtype=np.float32)
-        all_measures['faithfulness_correlation_bas'] = np.zeros(num_rankings, dtype=np.float32)
-        all_measures['faithfulness_correlation_inv'] = np.zeros(num_rankings, dtype=np.float32)
-        #all_measures['monotonicity_correlation'] = np.zeros(num_rankings, dtype=np.float32)
-        #all_measures['pixel_flipping'] = np.zeros((num_rankings,num_vars), dtype=np.float32)
+        for k in quantus_functions:
+            all_measures[k] = np.zeros(num_rankings, dtype=np.float32)
+            all_measures[k + '_inv'] = np.zeros(num_rankings, dtype=np.float32)
 
         for i in tqdm(range(num_rankings),  miniters=1000):
             all_measures['ranking'][i] = all_rankings[i]
@@ -110,77 +127,22 @@ def compute_measures_for_sample(network:torch.nn.Module,\
             #print('a_batch shape:',a_batch.shape)
             #print('network(x_batch) shape:',network(torch.tensor(x_batch).to(device)).shape)
             #print(a_batch)
-            all_measures['faithfulness_correlation'][i] = quantus.FaithfulnessCorrelation(
-                                                            nr_runs=10,
-                                                            subset_size=4,  
-                                                            perturb_baseline="black",
-                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
-                                                            similarity_func=quantus.similarity_func.correlation_pearson,  
-                                                            abs=False,  
-                                                            return_aggregate=False,
-                                                            disable_warnings=True
-                                                        )(model=network, 
-                                                        x_batch=x_batch, 
-                                                        y_batch=y_batch,
-                                                        a_batch=a_batch,
-                                                        device=device,
-                                                        channel_first=True)[0]
-            all_measures['faithfulness_correlation_bas'][i] = quantus.FaithfulnessCorrelation(
-                                                            nr_runs=10,
-                                                            subset_size=4,  
-                                                            perturb_baseline="black",
-                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
-                                                            similarity_func=quantus.similarity_func.correlation_pearson,  
-                                                            abs=False,  
-                                                            return_aggregate=False,
-                                                            disable_warnings=True
-                                                        )(model=network, 
-                                                        x_batch=x_batch, 
-                                                        y_batch=y_batch,
-                                                        a_batch=a_batch_bas,
-                                                        device=device,
-                                                        channel_first=True)[0]
-            all_measures['faithfulness_correlation_inv'][i] = quantus.FaithfulnessCorrelation(
-                                                            nr_runs=10,
-                                                            subset_size=4,  
-                                                            perturb_baseline="black",
-                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
-                                                            similarity_func=quantus.similarity_func.correlation_pearson,  
-                                                            abs=False,  
-                                                            return_aggregate=False,
-                                                            disable_warnings=True
-                                                        )(model=network, 
-                                                        x_batch=x_batch, 
-                                                        y_batch=y_batch,
-                                                        a_batch=a_batch_inv,
-                                                        device=device,
-                                                        channel_first=True)[0]
-            '''all_measures['monotonicity_correlation'][i] = quantus.MonotonicityCorrelation(
-                                                            nr_samples=10,
-                                                            features_in_step=2 if NUM_VARS % 2 == 0 else 1,
-                                                            perturb_baseline="black",
-                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
-                                                            similarity_func=quantus.similarity_func.correlation_spearman,
-                                                            disable_warnings=True
-                                                        )(model=network, 
-                                                        x_batch=x_batch,
-                                                        y_batch=y_batch,
-                                                        a_batch=a_batch,
-                                                        device=device,
-                                                        channel_first=True)[0]
-            
-            all_measures['pixel_flipping'][i] = quantus.PixelFlipping(
-                                                            features_in_step=1,
-                                                            perturb_baseline="black",
-                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
-                                                            disable_warnings=True
-                                                        )(model=network,
-                                                            x_batch=x_batch,
-                                                            y_batch=y_batch,
-                                                            a_batch=a_batch,
-                                                            device=device,
-                                                        channel_first=True)[0]
-            '''
+
+            for k in quantus_functions:
+                f = quantus_functions[k]
+
+                all_measures[k][i] = f(model=network,
+                                        x_batch=x_batch, 
+                                        y_batch=y_batch,
+                                        a_batch=a_batch,
+                                        device=device,
+                                        channel_first=True)[0]
+                all_measures[k + '_inv'][i] = f(model=network, 
+                                                x_batch=x_batch, 
+                                                y_batch=y_batch,
+                                                a_batch=a_batch_inv,
+                                                device=device,
+                                                channel_first=True)[0]
         return all_measures
 
 if __name__ == '__main__':
@@ -263,10 +225,13 @@ if __name__ == '__main__':
                 with torch.no_grad():
                     all_measures = compute_measures_for_sample(network, row, label, masking_values, NUM_RANKINGS, num_samples, generator_name, genetic_iterations=GENETIC_ITERATIONS)
 
-                np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_fc_measures.npz'), \
+                quantus_results = {}
+                for k in quantus_functions:
+                    quantus_results[k] = all_measures[k]
+                    quantus_results[k + '_inv'] = all_measures[k + '_inv']
+
+                np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_quantus_measures.npz'), \
                         row=row.to('cpu').numpy(), \
                         label=label.to('cpu').numpy(), \
                         rankings=all_measures['ranking'], \
-                        faithfulness_correlation=all_measures['faithfulness_correlation'], \
-                        faithfulness_correlation_bas=all_measures['faithfulness_correlation_bas'], \
-                        faithfulness_correlation_inv=all_measures['faithfulness_correlation_inv'])
+                        **quantus_results)
