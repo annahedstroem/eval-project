@@ -8,7 +8,7 @@ import xai_faithfulness_experiments_lib_edits as fl
 import numpy as np
 from tqdm import tqdm
 import quantus
-from quantus.metrics.randomisation import EfficientMPRT
+from quantus.metrics.faithfulness import FaithfulnessCorrelation, FaithfulnessEstimate, MonotonicityCorrelation, Sufficiency
 import genetic_generator as gg
 import captum_generator as cg
 
@@ -16,9 +16,9 @@ import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'Using {device}')
 
-quantus_functions = {'FaithfulnessCorrelation': quantus.FaithfulnessCorrelation(
+quantus_functions = {'FaithfulnessCorrelation': FaithfulnessCorrelation(
                                                             nr_runs=10,
-                                                            subset_size=4,  
+                                                            subset_size=224,  
                                                             perturb_baseline="black",
                                                             perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
                                                             similarity_func=quantus.similarity_func.correlation_pearson,  
@@ -27,12 +27,27 @@ quantus_functions = {'FaithfulnessCorrelation': quantus.FaithfulnessCorrelation(
                                                             return_aggregate=False,
                                                             disable_warnings=True
                                                         ),\
-                    'EfficientMPRT': EfficientMPRT(
-                                                        abs=False,
-                                                        normalise=False,
-                                                        return_aggregate=False,
-                                                        disable_warnings=True
-                                                    )}
+                    'FaithfulnessEstimate': FaithfulnessEstimate(
+                                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
+                                                            similarity_func=quantus.similarity_func.correlation_pearson,
+                                                            features_in_step=224,  
+                                                            perturb_baseline="black",
+                                                            disable_warnings=True
+                                                        ),
+                    'MonotonicityCorrelation': MonotonicityCorrelation(
+                                            nr_samples=10,
+                                            features_in_step=3136,
+                                            perturb_baseline="uniform",
+                                            perturb_func=quantus.perturb_func.baseline_replacement_by_indices,
+                                            similarity_func=quantus.similarity_func.correlation_spearman,
+                                            disable_warnings=True
+                                        ),
+                    'Sufficiency' : Sufficiency(
+                                            threshold=0.6,
+                                            return_aggregate=False,
+                                            disable_warnings=True
+                                        )
+        }
 
 def compute_measures_for_sample(network:torch.nn.Module,\
                                 row:torch.Tensor,\
@@ -146,7 +161,7 @@ def compute_measures_for_sample(network:torch.nn.Module,\
         return all_measures
 
 if __name__ == '__main__':
-    NUM_RANKINGS = 10000
+    NUM_RANKINGS = 1000
     GENETIC_ITERATIONS = 50
     NEEDED_SAMPLES = 5
     SAMPLE_INDICES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91]
@@ -157,8 +172,8 @@ if __name__ == '__main__':
                       ('imagenet', 'resnet18', ['_random', '_captum']), \
                       ('imagenet', 'resnet50', ['_random', '_captum']), \
                       ('imagenet', 'vgg16', ['_random', '_captum']), \
-                      ('cifar', 'resnet50', ['_random', '_captum']), \
-                      ('mnist', 'softmax', ['_random', '_captum']), \
+                      #('cifar', 'resnet50', ['_random', '_captum']), \
+                      #('mnist', 'softmax', ['_random', '_captum']), \
                     ]
 
     for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:    
@@ -230,7 +245,7 @@ if __name__ == '__main__':
                     quantus_results[k] = all_measures[k]
                     quantus_results[k + '_inv'] = all_measures[k + '_inv']
 
-                np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_quantus_measures.npz'), \
+                np.savez(os.path.join(PROJ_DIR, 'results', f'{DATASET}_{sample_index}_{MODEL_NAME}{generator_name}_quantus_other_measures.npz'), \
                         row=row.to('cpu').numpy(), \
                         label=label.to('cpu').numpy(), \
                         rankings=all_measures['ranking'], \
