@@ -110,7 +110,7 @@ def compute_measures_for_sample(network:torch.nn.Module,\
                                                                     explain_func=attribution_functions[i],
                                                                     device=device,
                                                                     channel_first=True)[0]
-                all_measures[metric + '_inv'][i] = robustness_function(model=network, 
+                all_measures[metric + '_inv'][i] = all_measures[metric][i] - robustness_function(model=network, 
                                                                     x_batch=x_batch, 
                                                                     y_batch=y_batch,
                                                                     a_batch=a_batch_inv,
@@ -118,7 +118,7 @@ def compute_measures_for_sample(network:torch.nn.Module,\
                                                                     explain_func_kwargs={'explain_func': attribution_functions[i]},
                                                                     device=device,
                                                                     channel_first=True)[0]
-            return all_measures
+        return all_measures
 
 if __name__ == '__main__':
     NUM_RANKINGS = 10000

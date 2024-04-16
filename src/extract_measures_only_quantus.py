@@ -16,6 +16,8 @@ import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'Using {device}')
 
+DEFAULT_CHUNKINESS = 16
+
 quantus_functions = {'FaithfulnessCorrelation': FaithfulnessCorrelation(
                                                             nr_runs=10,
                                                             subset_size=224,  
@@ -59,7 +61,7 @@ def compute_measures_for_sample(network:torch.nn.Module,\
                                 with_inverse:bool = True,\
                                 with_random:bool = False,\
                                 genetic_iterations: int = 50,\
-                                with_quantus:bool = False) -> dict:
+                                chunkiness:int = DEFAULT_CHUNKINESS) -> dict:
         input_shape = row.shape
         print(f'Generating {generator_mode} rankings...')
         if generator_mode == "_full":
@@ -78,6 +80,14 @@ def compute_measures_for_sample(network:torch.nn.Module,\
         elif generator_mode == "_captum":
             all_rankings = cg.generate_rankings(row, label, network)
             num_rankings = all_rankings.shape[0]
+        elif generator_mode == "_chunky":
+            #Random
+            all_rankings = np.zeros((num_rankings, *input_shape)) # To be randomly generated on the next loop
+            for i in tqdm(range(num_rankings)):
+                all_rankings[i] = fl._get_chunky_random_ranking_row(row.shape, chunkiness, chunkiness, True).cpu().numpy() # Random generation
+        elif generator_mode == "_randomattr":
+            #Random attribution
+            all_rankings = np.random.normal(size=(num_rankings, *input_shape))# Random attributions
         else:
             #Random
             all_rankings = np.zeros((num_rankings, *input_shape)) # To be randomly generated on the first loop
@@ -152,7 +162,7 @@ def compute_measures_for_sample(network:torch.nn.Module,\
                                         a_batch=a_batch,
                                         device=device,
                                         channel_first=True)[0]
-                all_measures[k + '_inv'][i] = f(model=network, 
+                all_measures[k + '_inv'][i] = all_measures[k][i] - f(model=network, 
                                                 x_batch=x_batch, 
                                                 y_batch=y_batch,
                                                 a_batch=a_batch_inv,
@@ -169,9 +179,9 @@ if __name__ == '__main__':
     # For GENERATORS, empty means random. '_genetic', '_captum', Another alternative is '_full', that generates all possible rankings
     tuples_to_test = [#('avila', '', ['_full']), \
                       #('glass', '', ['_full']), \
-                      ('imagenet', 'resnet18', ['_random', '_captum']), \
-                      ('imagenet', 'resnet50', ['_random', '_captum']), \
-                      ('imagenet', 'vgg16', ['_random', '_captum']), \
+                      ('imagenet', 'resnet18', ['_randomattr', '_chunky', '_captum']), \
+                      ('imagenet', 'resnet50', ['_randomattr', '_chunky', '_captum']), \
+                      ('imagenet', 'vgg16', ['_randomattr', '_chunky', '_captum']), \
                       #('cifar', 'resnet50', ['_random', '_captum']), \
                       #('mnist', 'softmax', ['_random', '_captum']), \
                     ]
