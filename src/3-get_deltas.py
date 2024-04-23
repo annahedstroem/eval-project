@@ -6,8 +6,8 @@ PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 keys = ['correct_pairings_inv', 'correct_pairings_basX', 'spearman_inv', 'spearman_basX', 'aucs_inv', 'aucs_basX', 'spearman_exceptional_inv', 'spearman_exceptional_basX']
 
 tuples_to_test = [('imagenet', 'resnet18'), \
-                      #('imagenet', 'resnet50'), \
-                      #('imagenet', 'vgg16'), \
+                      ('imagenet', 'resnet50'), \
+                      ('imagenet', 'vgg16'), \
                       #('cifar', 'resnet50'), \
                       #('mnist', 'softmax'), \
                     ]
@@ -16,13 +16,13 @@ tuples_to_test = [('imagenet', 'resnet18'), \
 
 #target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
 #target_measures = ['LocalLipschitzEstimate', 'RelativeInputStability', 'RelativeOutputStability', 'MaxSensitivity', 'AvgSensitivity']
-#target_measures = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency']
-target_measures = ['EfficientMPRT']
-GENERATION_MODE = ''
+target_measures = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency']
+#target_measures = ['EfficientMPRT']
+GENERATION_MODE = '_randomattr'
 #SUFFIX = '_localization_s_area'
 #SUFFIX = '_Robustness'
-#SUFFIX = '_quantus_other'
-SUFFIX = '_EfficientMPRT'
+SUFFIX = '_quantus_other'
+#SUFFIX = '_EfficientMPRT'
 
 # TABLE3
 # tuples_to_test = [('20newsgroups-truncated', ''), \
@@ -67,10 +67,18 @@ SUFFIX = '_EfficientMPRT'
 # SUFFIX = ''
 
 # TABLE6
-tuples_to_test = [('cmnist', 'resnet18')]
-target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
-GENERATION_MODE = '_randomattr'
-SUFFIX = '_localization_s_area'
+# tuples_to_test = [('imagenet', 'resnet18'), \
+#                       ('imagenet', 'vgg16'), \
+#                     ]
+# target_measures = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency']
+# GENERATION_MODE = '_randomattr'
+# SUFFIX = '_quantus_other'
+
+# TABLE7
+# tuples_to_test = [('cmnist', 'resnet18')]
+# target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
+# GENERATION_MODE = '_randomattr'
+# SUFFIX = '_localization_s_area'
 
 print(f'Dataset - Model\tDeltaPA\tDeltaRho')
 

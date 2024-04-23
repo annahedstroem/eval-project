@@ -53,18 +53,18 @@ def measure_detection(target_indices, estimator):
 
 tuples_to_test = [#('avila', '', ['_full']), \
                       #('glass', '', ['_full']), \
-                      ('imagenet', 'resnet18', ['']),#['_randomattr'], '_chunky', '_captum']), \
-                      #('imagenet', 'resnet50', ['']),# ['_randomattr'], '_chunky', '_captum']), \
-                      #('imagenet', 'vgg16', ['']),# ['_randomattr'], '_chunky', '_captum']), \
+                      ('imagenet', 'resnet18', ['_randomattr', '_chunky', '_captum']), \
+                      #('imagenet', 'resnet50', ['_randomattr', '_chunky', '_captum']), \
+                      ('imagenet', 'vgg16', ['_randomattr', '_chunky', '_captum']), \
                       #('cifar', 'resnet50', ['']),# ['_random', '_captum']), \
                       #('mnist', 'softmax', ['']),# ['_random', '_captum']), \
                     ]
 #TARGET_MEASURES = ['LocalLipschitzEstimate', 'RelativeInputStability', 'RelativeOutputStability', 'MaxSensitivity', 'AvgSensitivity'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
-#TARGET_MEASURES = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
-TARGET_MEASURES = ['EfficientMPRT']
+TARGET_MEASURES = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
+#TARGET_MEASURES = ['EfficientMPRT']
 #SUFFIX = '_Robustness'
-#SUFFIX = '_quantus_other'
-SUFFIX = '_EfficientMPRT'
+SUFFIX = '_quantus_other'
+#SUFFIX = '_EfficientMPRT'
 
 for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
     for TARGET_MEASURE in TARGET_MEASURES:
