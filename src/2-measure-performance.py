@@ -41,7 +41,7 @@ def measure_correct_orderings(truths, estimators):
     ys = np.random.permutation(truths.size)
     truthX_lt_Y = truths[xs] < truths[ys]
     estimatorX_lt_Y = estimators[xs] < estimators[ys]
-    hits = truthX_lt_Y==estimatorX_lt_Y
+    hits = truthX_lt_Y==estimatorX_lt_Y.squeeze()
     return hits.sum()/truths.size
 
 def measure_detection(target_indices, estimator):
@@ -51,20 +51,22 @@ def measure_detection(target_indices, estimator):
     target[target_indices] = 1
     return metrics.roc_auc_score(target, estimator)
 
-tuples_to_test = [#('avila', '', ['_full']), \
-                      #('glass', '', ['_full']), \
-                      ('imagenet', 'resnet18', ['_randomattr', '_chunky', '_captum']), \
+tuples_to_test = [('avila', 'mlp', ['_full']), \
+                      #('glass', 'mlp', ['_full']), \
+                      #('imagenet', 'resnet18', ['_randomattr', '_chunky', '_captum']), \
                       #('imagenet', 'resnet50', ['_randomattr', '_chunky', '_captum']), \
-                      ('imagenet', 'vgg16', ['_randomattr', '_chunky', '_captum']), \
+                      #('imagenet', 'vgg16', ['_randomattr', '_chunky', '_captum']), \
                       #('cifar', 'resnet50', ['']),# ['_random', '_captum']), \
                       #('mnist', 'softmax', ['']),# ['_random', '_captum']), \
                     ]
+TARGET_MEASURES = ['qmeans']
 #TARGET_MEASURES = ['LocalLipschitzEstimate', 'RelativeInputStability', 'RelativeOutputStability', 'MaxSensitivity', 'AvgSensitivity'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
-TARGET_MEASURES = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
+#TARGET_MEASURES = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency'] # 'qmeans' | 'faithfulness_correlation' | 'AttributionLocalisation' | 'TopKIntersection' | 'RelevanceRankAccuracy' | 'AUC'
 #TARGET_MEASURES = ['EfficientMPRT']
 #SUFFIX = '_Robustness'
-SUFFIX = '_quantus_other'
+#SUFFIX = '_quantus_other'
 #SUFFIX = '_EfficientMPRT'
+SUFFIX = ''
 
 for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
     for TARGET_MEASURE in TARGET_MEASURES:
@@ -72,7 +74,6 @@ for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
             for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
                 if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}{SUFFIX}_measures.npz'):#f'{MODEL_NAME}{GENERATION}_localization_s_area_measures.npz'
                     print(FILENAME)
-
                     # Load data
                     data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))
                     
@@ -128,6 +129,18 @@ for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
                     print('\t\t'+'-'*20)
                     print(f'\t\tqmeans_inv: {correct_pairings_inv:.4f}')
 
+                    # ### 2.1.b Spearman correlation
+                    # Same thing, but now measured with Kendall's tau
+                    print('Kendall\'s tau correlation:')
+                    from scipy.stats import kendalltau
+                    tau_basX = []
+                    for i in range(len(qmeans_basX)):
+                        tau_basX.append(kendalltau(qmeans, qmeans_basX[i])[0])
+                        print(f'\t\tqmeans_bas{i+1}: {tau_basX[i]:.4f}')
+                    tau_inv = kendalltau(qmeans, qmeans_inv)[0]
+                    print('\t\t'+'-'*20)
+                    print(f'\t\tqmeans_inv: {tau_inv:.4f}')
+
                     # ### 2.2. Spearman correlation
                     # Same thing, is the order of qmeans preserved in qbasX/qinv?
                     print('\tSpearman correlation:')
@@ -171,15 +184,36 @@ for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
                         print(f'\t\tspearman_exceptional_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}', spearman_exceptional_basX[i])))
                     print('\t\t'+'-'*20)
                     print('\t\tspearman_exceptional_inv ' + ' | '.join(map(lambda x: f'{x:.4f}', spearman_exceptional_inv)))
+
+                    # ### 2.4.b Ability to rank exceptionally good rankings
+                    # Same, but with Kendall's tau
+                    tau_exceptional_inv = []
+                    tau_exceptional_basX = [[] for i in qmeans_basX]
+
+                    for indices, (bottom_limit, upper_limit) in level_indices:
+                        tau_exceptional_inv.append(kendalltau(qmeans[indices], qmeans_inv[indices])[0])
+                        for i in range(len(qmeans_basX)):
+                            tau_exceptional_basX[i].append(kendalltau(qmeans[indices], qmeans_basX[i][indices])[0])
+
+                    print('\tKendall\'s tau correlation for exceptional rankings:')
+                    for i in range(len(qmeans_basX)):
+                        print(f'\t\ttau_exceptional_bas{i} ' + ' | '.join(map(lambda x: f'{x:.4f}', tau_exceptional_basX[i])))
+                    print('\t\t'+'-'*20)
+                    print('\t\ttau_exceptional_inv ' + ' | '.join(map(lambda x: f'{x:.4f}', tau_exceptional_inv)))
+                    
                     
                     # ### 3. Save
                     np.savez(os.path.join(PROJ_DIR, 'results', FILENAME.replace('_measures','_results_' + TARGET_MEASURE)), \
                             correct_pairings_inv=correct_pairings_inv, \
                             correct_pairings_basX=correct_pairings_basX, \
+                            tau_inv=tau_inv, \
+                            tau_basX=tau_basX, \
                             spearman_inv=spearman_inv, \
                             spearman_basX=spearman_basX, \
                             aucs_inv=aucs_inv, \
                             aucs_basX=aucs_basX, \
                             spearman_exceptional_inv=spearman_exceptional_inv, \
                             spearman_exceptional_basX=spearman_exceptional_basX, \
+                            tau_exceptional_inv=tau_exceptional_inv, \
+                            tau_exceptional_basX=tau_exceptional_basX, \
                             boundaries=boundaries)
