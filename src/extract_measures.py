@@ -164,8 +164,8 @@ if __name__ == '__main__':
     NUM_RANKINGS = 10000
     GENETIC_ITERATIONS = 50
 
-    tuples_to_test = [#('avila', '', ['_full']), \
-                      #('glass', '', ['_full']), \
+    tuples_to_test = [#('avila', 'mlp', ['_full']), \
+                      #('glass', 'mlp', ['_full']), \
                       ('cifar', 'resnet50', ['_chunky'], 4), \
                       ('imagenet', 'resnet18', ['_chunky'], 32), \
                       ('imagenet', 'resnet50', ['_chunky'], 32), \
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     for DATASET, MODEL_NAME, GENERATORS, CHUNKINESS in tuples_to_test:
         # Load dataset
-        if DATASET == '20newsgroups-truncated':
+        if DATASET in ['20newsgroups-truncated', 'avila', 'glass']:
             DATASET_PATH = os.path.join(PROJ_DIR,'assets', 'data', f'{DATASET}.npz')
             # Load dataset
             file_data = np.load(DATASET_PATH)
@@ -202,6 +202,12 @@ if __name__ == '__main__':
         elif DATASET == '20newsgroups-truncated':
             MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}{MODEL_NAME}-mlp.pth')
             network = fl.load_pretrained_mlp_large_model(MODEL_PATH, x_train.shape[1], 20, [1000, 1000, 800, 500])
+        elif DATASET == 'avila':
+            MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}{MODEL_NAME}-mlp.pth')
+            network = fl.load_pretrained_mlp_model(MODEL_PATH, 10, 12, 100)
+        elif DATASET == 'glass':
+            MODEL_PATH = os.path.join(PROJ_DIR,'assets', 'models', f'{DATASET}{MODEL_NAME}-mlp.pth')
+            network = fl.load_pretrained_mlp_model(MODEL_PATH, 9, 6, 100)
         else:
             raise Exception(f'ERROR: Unknown dataset {DATASET}')
 
