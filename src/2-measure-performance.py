@@ -7,7 +7,7 @@ import sys
 import os
 PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.join(PROJ_DIR,'src'))
-import xai_faithfulness_experiments_lib_edits as fl
+import gce_lib as fl
 import numpy as np
 from typing import Optional
 from matplotlib import pyplot as plt
@@ -51,7 +51,8 @@ def measure_detection(target_indices, estimator):
     target[target_indices] = 1
     return metrics.roc_auc_score(target, estimator)
 
-tuples_to_test = [('avila', 'mlp', ['_full']), \
+tuples_to_test = [
+                      #('avila', 'mlp', ['_full']), \
                       #('glass', 'mlp', ['_full']), \
                       #('imagenet', 'resnet18', ['_randomattr', '_chunky', '_captum']), \
                       #('imagenet', 'resnet50', ['_randomattr', '_chunky', '_captum']), \
@@ -68,15 +69,81 @@ TARGET_MEASURES = ['qmeans']
 #SUFFIX = '_EfficientMPRT'
 SUFFIX = ''
 
+#### Section 4.1.a
+# tuples_to_test, TARGET_MEASURES, SUFFIX = [('avila', 'mlp', ['_full']), ('glass', 'mlp', ['_full'])], ['qmeans'], ''
+##########
+
+#### Section 4.1.b
+# tuples_to_test = [
+#     ('20newsgroups', 'mlp', ['_random']),
+#     ('mnist', 'mlp', ['_random']),
+#     ('cifar', 'resnet50', ['_chunky']),
+#     ('imagenet', 'resnet18', ['_chunky']),
+#     ('imagenet', 'resnet50', ['_chunky']),
+#     ('imagenet', 'vgg16', ['_chunky']),
+#     ('imagenet', 'maxvit_t', ['_chunky']),
+#     ('imagenet', 'vit_b_32', ['_chunky'])
+# ]
+# TARGET_MEASURES = ['qmeans']
+# SUFFIX = ''
+##########
+
+#### Section 4.1.c
+# tuples_to_test = [
+#     ('avila', 'ood-mean', ['_full']),
+#     ('avila', 'ood-zeros', ['_full']),
+#     ('avila', 'undertrained', ['_full']),
+#     ('avila', 'untrained', ['_full']),
+#     ('glass', 'ood-mean', ['_full']),
+#     ('glass', 'ood-zeros', ['_full']),
+#     ('glass', 'undertrained', ['_full']),
+#     ('glass', 'untrained', ['_full']),
+# ]
+# TARGET_MEASURES = ['qmeans']
+# SUFFIX = ''
+##########
+
+#### Section 4.1.d - Faithfulness
+# tuples_to_test = [
+#     ('imagenet', 'resnet18', ['_chunky']),
+#     ('imagenet', 'vgg16', ['_chunky']),
+# ]
+# TARGET_MEASURES = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation']
+# SUFFIX = '_quantus_other'
+##########
+
+#### Section 4.1.d - Localization
+# tuples_to_test = [
+#     ('cmnist', 'resnet18', ['_chunky']),
+# ]
+# TARGET_MEASURES = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
+# SUFFIX = '_localization_s_area'
+##########
+
+#### Appendix A.1
+# tuples_to_test = [
+#     ('cifar', 'resnet50', ['_random']),
+#     ('imagenet', 'resnet18', ['_random']),
+#     ('imagenet', 'resnet50', ['_random']),
+#     ('imagenet', 'vgg16', ['_random']),
+#     ('imagenet', 'vit_b_32', ['_random']),
+#     ('imagenet', 'maxvit_t', ['_random']),
+# ]
+# TARGET_MEASURES = ['qmeans']
+# SUFFIX = ''
+##########
+
 for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
     for TARGET_MEASURE in TARGET_MEASURES:
         for GENERATION in GENERATORS:
-            for FILENAME in os.listdir(os.path.join(PROJ_DIR,'results')):
+            for FILENAME in sorted(os.listdir(os.path.join(PROJ_DIR,'results'))):
                 if FILENAME.startswith(DATASET) and FILENAME.endswith(f'{MODEL_NAME}{GENERATION}{SUFFIX}_measures.npz'):#f'{MODEL_NAME}{GENERATION}_localization_s_area_measures.npz'
                     print(FILENAME)
                     # Load data
                     data = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME))
-                    
+                    # print(data['output_curves'][0][-1])
+                    # # print(data['rankings'].shape[0])
+                    # continue
                     qmeans = data[TARGET_MEASURE]
                     #qmeans_basX = [data['qmean_bas']] # We don't look at qmean_bas, it will be recomputed later with the appropriate reference
                     qmeans_basX = []
@@ -84,10 +151,6 @@ for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
 
                     # Compute qmeans_bas[2-10]
                     qmeans_reference = qmeans
-                    if GENERATION in ['_genetic', '_captum']:
-                        # If data is genetic- or captum-generated, we'll load the random generated equivalent to compute qbas with
-                        data_reference = fl.load_generated_data(os.path.join(PROJ_DIR, 'results', FILENAME.replace(GENERATION, '_randomattr'))) # or '_random'
-                        qmeans_reference = data_reference[TARGET_MEASURE]
                     for i in range(1,11):
                         qmeans_basX.append(compute_qbas(qmeans, i, qmeans_reference))
 
@@ -131,7 +194,7 @@ for DATASET, MODEL_NAME, GENERATORS in tuples_to_test:
 
                     # ### 2.1.b Spearman correlation
                     # Same thing, but now measured with Kendall's tau
-                    print('Kendall\'s tau correlation:')
+                    print('\tKendall\'s tau correlation:')
                     from scipy.stats import kendalltau
                     tau_basX = []
                     for i in range(len(qmeans_basX)):

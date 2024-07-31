@@ -5,66 +5,22 @@ PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 
 keys = ['qmeans']
 
-tuples_to_test = [('imagenet', 'resnet18'), \
-                      #('imagenet', 'resnet50'), \
-                      #('imagenet', 'vgg16'), \
-                      #('cifar', 'resnet50'), \
-                      #('mnist', 'softmax'), \
-                    ]
-
-#tuples_to_test = [('cmnist', 'resnet18')]
-
-#target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
-#target_measures = ['LocalLipschitzEstimate', 'RelativeInputStability', 'RelativeOutputStability', 'MaxSensitivity', 'AvgSensitivity']
-#target_measures = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency']
-target_measures = ['EfficientMPRT']
-GENERATION_MODE = ''
-#SUFFIX = '_localization_s_area'
-#SUFFIX = '_Robustness'
-#SUFFIX = '_quantus_other'
-SUFFIX = '_EfficientMPRT'
-
-# TABLE3
-# tuples_to_test = [('20newsgroups-truncated', ''), \
-#                       ('mnist', 'softmax'), \
-#                       ('cifar', 'resnet50'), \
-#                       ('imagenet', 'resnet18'), \
-#                       ('imagenet', 'resnet50'), \
-#                       ('imagenet', 'vgg16'), \
-#                       ('imagenet', 'vit_b_32'), \
-#                       ('imagenet', 'maxvit_t')
-#                     ]
-# target_measures = ['']
-# GENERATION_MODE = ''
-# SUFFIX = ''
-
-# TABLE4
-# tuples_to_test = [('cifar', 'resnet50'), \
-#                       ('imagenet', 'resnet18'), \
-#                       ('imagenet', 'resnet50'), \
-#                       ('imagenet', 'vgg16'), \
-#                       ('imagenet', 'vit_b_32'), \
-#                       ('imagenet', 'maxvit_t')
-#                     ]
-# target_measures = ['']
-# GENERATION_MODE = '_chunky'
-# SUFFIX = ''
-
-# TABLE5
-tuples_to_test = [('avila', '0'), \
+#### TABLE2
+tuples_to_test = [('avila', 'mlp'), \
                       ('avila', 'ood-mean'), \
                       ('avila', 'ood-zeros'), \
                       ('avila', 'undertrained'), \
                       ('avila', 'untrained'), \
-                      ('glass', '0'), \
+                      ('glass', 'mlp'), \
                       ('glass', 'ood-mean'), \
                       ('glass', 'ood-zeros'), \
                       ('glass', 'undertrained'), \
                       ('glass', 'untrained')
                     ]
-target_measures = ['']
-GENERATION_MODE = ''
+target_measures = ['qmeans']
+GENERATION_MODE = '_full'
 SUFFIX = ''
+##########
 
 print(f'Dataset - Model\tDeltaPA\tDeltaRho')
 
@@ -73,14 +29,10 @@ for TARGET_MEASURE in target_measures:
         \multicolumn{4}{|c|}{''' + TARGET_MEASURE + r'''}\\
         \hline''')
     for DATASET_NAME, MODEL_NAME in tuples_to_test:
-        if 'vit' in MODEL_NAME:
-            GENERATION_MODE = '_random'
-            if 'maxvit' in MODEL_NAME:
-                GENERATION_MODE = '_random_b'
         num_files = 0 # Count how many files are involved for use below
         result_dict = {}
         for f in os.listdir(os.path.join(PROJ_DIR, 'results')):
-            if f.startswith(DATASET_NAME) and f.endswith(f'{MODEL_NAME}{GENERATION_MODE}{SUFFIX}_measures{TARGET_MEASURE}.npz'):#{MODEL_NAME}{GENERATION_MODE}_localization_s_area_results{TARGET_MEASURE}.npz
+            if f.startswith(DATASET_NAME) and f.endswith(f"{MODEL_NAME}{GENERATION_MODE}{SUFFIX}_measures.npz"):#{MODEL_NAME}{GENERATION_MODE}_localization_s_area_results{TARGET_MEASURE}.npz
                 FILENAME = os.path.join(PROJ_DIR, 'results', f)
                 
                 num_files += 1
