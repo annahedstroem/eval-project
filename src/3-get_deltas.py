@@ -5,34 +5,15 @@ PROJ_DIR = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 
 keys = ['correct_pairings_inv', 'correct_pairings_basX', 'tau_inv', 'tau_basX', 'spearman_inv', 'spearman_basX', 'aucs_inv', 'aucs_basX', 'spearman_exceptional_inv', 'spearman_exceptional_basX']
 
-tuples_to_test = [('imagenet', 'resnet18'), \
-                      ('imagenet', 'resnet50'), \
-                      ('imagenet', 'vgg16'), \
-                      #('cifar', 'resnet50'), \
-                      #('mnist', 'softmax'), \
-                    ]
-
-#tuples_to_test = [('cmnist', 'resnet18')]
-
-#target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
-#target_measures = ['LocalLipschitzEstimate', 'RelativeInputStability', 'RelativeOutputStability', 'MaxSensitivity', 'AvgSensitivity']
-target_measures = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency']
-#target_measures = ['EfficientMPRT']
-GENERATION_MODE = '_randomattr'
-#SUFFIX = '_localization_s_area'
-#SUFFIX = '_Robustness'
-SUFFIX = '_quantus_other'
-#SUFFIX = '_EfficientMPRT'
-
 #### TABLE1
 #### First two rows
-# tuples_to_test = [
-#     ('20newsgroups', 'mlp'), \
-#     ('mnist', 'mlp'), \
-# ]
-# target_measures = ['qmeans']
-# GENERATION_MODE = '_random'
-# SUFFIX = ''
+tuples_to_test = [
+    ('20newsgroups', 'mlp'), \
+    ('mnist', 'mlp'), \
+]
+target_measures = ['qmeans']
+GENERATION_MODE = '_random'
+SUFFIX = ''
 #### Rest of rows
 # tuples_to_test = [('cifar', 'resnet50'), \
 #                       ('imagenet', 'resnet18'), \
@@ -74,12 +55,12 @@ SUFFIX = '_quantus_other'
 ##########
 
 #### TABLE4
-tuples_to_test = [
-    ('cmnist', 'resnet18'),
-]
-target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
-GENERATION_MODE = '_chunky'
-SUFFIX = '_localization_s_area'
+# tuples_to_test = [
+#     ('cmnist', 'resnet18'),
+# ]
+# target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
+# GENERATION_MODE = '_chunky'
+# SUFFIX = '_localization_s_area'
 ##########
 
 #### TABLE5
@@ -96,21 +77,6 @@ SUFFIX = '_localization_s_area'
 # SUFFIX = ''
 ##########
 
-# TABLE6
-# tuples_to_test = [('imagenet', 'resnet18'), \
-#                       ('imagenet', 'vgg16'), \
-#                     ]
-# target_measures = ['FaithfulnessCorrelation', 'FaithfulnessEstimate', 'MonotonicityCorrelation', 'Sufficiency']
-# GENERATION_MODE = '_randomattr'
-# SUFFIX = '_quantus_other'
-##########
-
-# TABLE7
-# tuples_to_test = [('cmnist', 'resnet18')]
-# target_measures = ['AttributionLocalisation', 'TopKIntersection', 'RelevanceRankAccuracy', 'RelevanceMassAccuracy', 'AUC']
-# GENERATION_MODE = '_randomattr'
-# SUFFIX = '_localization_s_area'
-##########
 
 print(f'Dataset - Model\tDeltaTau\tDeltaRho')
 

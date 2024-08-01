@@ -28,9 +28,9 @@ Replicating one of the results generally consists of four steps:
         - CIFAR: nbs/0-Model training/0-CIFAR-train.ipynb
         - Imagenet: Not needed
     2. Compute measures: src/1-extract_measures.py (line 94)
-    3. Compute results: src/2-measure-performance.ipynb (line 75)
+    3. Compute results: src/2-measure-performance.ipynb (line 76)
     4. Aggregate results:
-        - Table 1: src/3-get_deltas.py (line 27)
+        - Table 1: src/3-get_deltas.py (line 8)
 ```
 
  - Section 4.1.c
@@ -41,9 +41,9 @@ Replicating one of the results generally consists of four steps:
             - Stop training when test accuracy reaches 70% for undertrained
             - Save weights with no training for untrained
     2. Compute measures: src/1-extract_measures.py (line 105)
-    3. Compute results: src/2-measure-performance.ipynb (line 90)
+    3. Compute results: src/2-measure-performance.ipynb (line 91)
     4. Aggregate results:
-        - Table 2: src/3-get_deltas.py (line 49) & src/3-get_stds.py
+        - Table 2: src/3-get_deltas.py (line 30) & src/3-get_stds.py
 ```
 
  - Section 4.1.d
@@ -54,15 +54,22 @@ Replicating one of the results generally consists of four steps:
         - Localization: src/1-extract_measures_localization-cmnist.py (line 122)
     3. Compute results: src/2-measure-performance.ipynb (lines 106 & 115)
     4. Aggregate results:
-        - Table 3: src/3-get_deltas.py (line 66) (Pixel-Flipping results taken from Table 1).
-        - Table 4: src/3-get-deltas.py (line 76)
+        - Table 3: src/3-get_deltas.py (line 47) (Pixel-Flipping results taken from Table 1).
+        - Table 4: src/3-get-deltas.py (line 57)
 ```
 
- 1. Appendix
+ - Section 4.2
+```
+    Use meta_evaluation.py in "inverse-estimation" repository.
+```
+
+  - Appendix
  ```
-    A.1 - Figure 6: After having the results for Section 4.1.a, run nbs/plot-qge-distribution.ipynb
-    A.2 - Table 5:
-        1. Compute measures: src/1-extract_measures.py (uncomment line 175)
-        2. Compute results: src/2-measure-performance.ipynb (line 90)
-        3. Aggregate results: src/3-get_deltas.py (line 85)
+    A.1 - Figure 4: After having the results for Section 4.1.a, run nbs/plot-qge-distribution.ipynb
+    A.2, A.4 - Figures 5 & 6: After having the results for Section 4.1.a, nbs/3-plot.ipynb (uncomment line in first cell)
+    A.3 - Table 5:
+        1. Compute measures: src/1-extract_measures.py (line 118)
+        2. Compute results: src/2-measure-performance.ipynb (line 123)
+        3. Aggregate results: src/3-get_deltas.py (line 66)
+    A.5 - Figures 7 & 8: use meta_evaluation.py in "inverse-estimation" repository.
 ```

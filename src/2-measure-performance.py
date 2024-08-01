@@ -120,7 +120,7 @@ SUFFIX = ''
 # SUFFIX = '_localization_s_area'
 ##########
 
-#### Appendix A.1
+#### Appendix A.3
 # tuples_to_test = [
 #     ('cifar', 'resnet50', ['_random']),
 #     ('imagenet', 'resnet18', ['_random']),
