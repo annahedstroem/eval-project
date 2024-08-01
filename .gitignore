@@ -6,7 +6,9 @@ old/
 */*.gsheet
 *.ipynb_checkpoints*
 results/
-data/
+data/*
 assets/models/20newsgroups*
 results
 nohup*
+assets/data/*
+assets/models/*
