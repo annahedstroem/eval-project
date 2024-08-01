@@ -10,5 +10,4 @@ data/*
 assets/models/20newsgroups*
 results
 nohup*
-assets/data/*
-assets/models/*
+assets/data/cifar-classnames.txt
