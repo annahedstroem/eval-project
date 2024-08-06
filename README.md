@@ -1,6 +1,8 @@
 # QGE - Quality gap estimator
 
-This project allows for the replication of the experiments in the paper "Insight in the Opposites: Efficient Estimates of Explanation Quality".
+This project allows for the replication of the experiments in the paper "Evaluate with the Inverse: \\ Efficient Approximation of Latent Explanation Quality Distribution".
+
+Please note that this is only the code for the experiments. The link to the final implementation of QGE will be available after the double-blind peer-review process.
 
 ## Instructions to replicate the experiments
 
